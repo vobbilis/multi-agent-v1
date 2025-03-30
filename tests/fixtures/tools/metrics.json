@@ -1,0 +1,174 @@
+{
+    "kind": "NodeMetricsList",
+    "apiVersion": "metrics.k8s.io/v1beta1",
+    "metadata": {
+        "selfLink": "/apis/metrics.k8s.io/v1beta1/nodes"
+    },
+    "items": [
+        {
+            "metadata": {
+                "name": "test-node",
+                "creationTimestamp": "2024-03-30T06:10:00Z"
+            },
+            "timestamp": "2024-03-30T06:10:00Z",
+            "window": "30s",
+            "usage": {
+                "cpu": "1000m",
+                "memory": "4Gi"
+            }
+        }
+    ],
+    "podMetrics": {
+        "kind": "PodMetricsList",
+        "apiVersion": "metrics.k8s.io/v1beta1",
+        "metadata": {
+            "selfLink": "/apis/metrics.k8s.io/v1beta1/namespaces/default/pods"
+        },
+        "items": [
+            {
+                "metadata": {
+                    "name": "test-pod",
+                    "namespace": "default",
+                    "creationTimestamp": "2024-03-30T06:10:00Z"
+                },
+                "timestamp": "2024-03-30T06:10:00Z",
+                "window": "30s",
+                "containers": [
+                    {
+                        "name": "test-container",
+                        "usage": {
+                            "cpu": "50m",
+                            "memory": "64Mi"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "resourceQuotas": {
+        "kind": "ResourceQuotaList",
+        "apiVersion": "v1",
+        "metadata": {
+            "selfLink": "/api/v1/namespaces/default/resourcequotas"
+        },
+        "items": [
+            {
+                "metadata": {
+                    "name": "test-quota",
+                    "namespace": "default"
+                },
+                "spec": {
+                    "hard": {
+                        "cpu": "4",
+                        "memory": "8Gi",
+                        "pods": "10"
+                    }
+                },
+                "status": {
+                    "hard": {
+                        "cpu": "4",
+                        "memory": "8Gi",
+                        "pods": "10"
+                    },
+                    "used": {
+                        "cpu": "1",
+                        "memory": "2Gi",
+                        "pods": "5"
+                    }
+                }
+            }
+        ]
+    },
+    "limitRanges": {
+        "kind": "LimitRangeList",
+        "apiVersion": "v1",
+        "metadata": {
+            "selfLink": "/api/v1/namespaces/default/limitranges"
+        },
+        "items": [
+            {
+                "metadata": {
+                    "name": "test-limits",
+                    "namespace": "default"
+                },
+                "spec": {
+                    "limits": [
+                        {
+                            "type": "Container",
+                            "default": {
+                                "cpu": "200m",
+                                "memory": "256Mi"
+                            },
+                            "defaultRequest": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "max": {
+                                "cpu": "2",
+                                "memory": "4Gi"
+                            },
+                            "min": {
+                                "cpu": "50m",
+                                "memory": "64Mi"
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "hpa": {
+        "kind": "HorizontalPodAutoscalerList",
+        "apiVersion": "autoscaling/v2",
+        "metadata": {
+            "selfLink": "/apis/autoscaling/v2/namespaces/default/horizontalpodautoscalers"
+        },
+        "items": [
+            {
+                "metadata": {
+                    "name": "test-hpa",
+                    "namespace": "default"
+                },
+                "spec": {
+                    "scaleTargetRef": {
+                        "apiVersion": "apps/v1",
+                        "kind": "Deployment",
+                        "name": "test"
+                    },
+                    "minReplicas": 1,
+                    "maxReplicas": 10,
+                    "metrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "cpu",
+                                "target": {
+                                    "type": "Utilization",
+                                    "averageUtilization": 80
+                                }
+                            }
+                        }
+                    ]
+                },
+                "status": {
+                    "observedGeneration": 1,
+                    "lastScaleTime": "2024-03-30T06:00:00Z",
+                    "currentReplicas": 5,
+                    "desiredReplicas": 5,
+                    "currentMetrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "cpu",
+                                "current": {
+                                    "averageUtilization": 60,
+                                    "averageValue": "120m"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+} 
