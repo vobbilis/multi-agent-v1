@@ -177,12 +177,18 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Exception for important project directories
+!k8s-test-manifests/
+!output/logs/
+!output/logs/.gitkeep
+
 # Reports and outputs
 *.md
 !README.md
-*.html
 *.json
 !package.json
+!k8s-test-manifests/**/*.json
+!output/investigations/**/*.json
 
 # Specific files from this project
 k8s_analyzer_enhanced.log*
