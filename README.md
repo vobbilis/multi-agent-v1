@@ -128,27 +128,53 @@ For more details, see the [implementation guide](docs/implementation_guide.md) a
 
 ## Project Structure
 
+- `main.py`: Main entry point for the multi-agent system
+- `bin/`: Executable scripts and symlinks
+- `cli/`: Command-line interface tools
+- `chaos-tests/`: Chaos engineering test configurations
+- `k8s-manifests/`: Kubernetes deployment manifests
+- `output/logs/`: Log output directory
+- `scripts/`: Utility scripts for the project
+- `smagent/`: Main source code package
+- `simulate/`: Kubernetes failure simulation scenarios for testing the Root Cause Analysis engine
+- `tests/`: Test cases and test utilities
+
+## Kubernetes Failure Simulations
+
+The `simulate/` directory contains YAML manifests for creating realistic Kubernetes failure scenarios to test the Root Cause Analysis engine. These scenarios simulate various common Kubernetes issues:
+
+### Available Scenario Categories
+
+- **Resource Issues**: Memory exhaustion, CPU throttling, resource quota limits
+- **Network Issues**: Network policy blockage, DNS resolution failures, service connectivity 
+- **Storage Issues**: PVC binding failures, storage performance issues, volume mount problems
+- **Application Issues**: Kafka partition imbalance, Cassandra compaction slowness, database connection issues
+- **Control Plane Issues**: API server overload, etcd performance issues, scheduler failures
+- **Security Issues**: Certificate expiry, RBAC permissions, secret access problems
+- **Observability Issues**: Logging pipeline failures, metrics service issues
+
+### Running Simulations
+
+The `simulate/apply-scenario.sh` script helps apply and manage simulation scenarios:
+
+```bash
+# Apply a scenario
+./simulate/apply-scenario.sh simulate/resource-issues/memory-exhaustion.yaml
+
+# Remove a scenario
+./simulate/apply-scenario.sh simulate/resource-issues/memory-exhaustion.yaml --delete
+
+# List available scenarios
+./simulate/apply-scenario.sh
 ```
-smagent/
-├── main.py                    # Entry point for the application
-├── docs/                      # Documentation
-├── config/                    # Configuration files
-├── k8s/                       # Kubernetes deployment manifests
-├── agents/                    # Agent implementations
-│   ├── master_agent.py        # Master coordinator agent
-│   ├── network_agent.py       # Network specialist agent
-│   ├── metrics_agent.py       # Metrics specialist agent
-│   ├── cluster_agent.py       # Cluster specialist agent
-│   └── ...                    # Other specialist agents
-├── graph/                     # LangGraph implementation
-│   ├── workflow.py            # Main workflow definition
-│   └── ...                    # Other graph components
-├── utils/                     # Utility functions
-│   ├── visualizations.py      # Visualization utilities
-│   ├── langsmith_logger.py    # LangSmith integration
-│   └── k8s_client/            # Kubernetes client wrappers
-└── tests/                     # Test suite
-```
+
+Each scenario includes:
+- Detailed description of the issue
+- Expected symptoms
+- Expected root cause
+- Resolution steps
+
+These scenarios provide a controlled environment to test and validate the Root Cause Analysis capabilities of the multi-agent system.
 
 ## Contributing
 
