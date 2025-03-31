@@ -1,0 +1,90 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My pod is showing CrashLoopBackOff and the logs show connection timeout errors",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My pod is showing CrashLoopBackOff and the logs show connection timeout errors",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 1 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "chaos": {
+      "agent_type": "chaos",
+      "analysis": "Identified active chaos engineering experiments in the cluster.",
+      "confidence": 0.95,
+      "potential_issues": [
+        "Chaos experiment intentionally terminating pods",
+        "Chaos experiment introducing network delays",
+        "Chaos experiment causing CPU or memory pressure",
+        "Chaos Mesh or other chaos engineering tool active on the cluster"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Pod termination pattern is consistent with chaos engineering activities.",
+      "confidence": 0.9,
+      "potential_issues": [
+        "Pod failure pattern matches chaos experiment configuration",
+        "Sudden pod termination without warning",
+        "Multiple pods restarting in sequence",
+        "No resource pressure detected before pod failures"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "chaos": 0.95,
+    "cluster": 0.9,
+    "chaos_engineering": 0.95
+  },
+  "root_causes": [
+    {
+      "category": "chaos_engineering",
+      "component": "pod_termination",
+      "description": "Active chaos engineering experiment detected on the cluster. This is likely causing the pods to be terminated deliberately.",
+      "confidence": 0.95
+    }
+  ],
+  "next_actions": [
+    "Check Chaos Mesh or other chaos engineering tools running on the cluster",
+    "Review active chaos experiments with `kubectl get podchaos,networkchaos -n chaos-testing`",
+    "Consider pausing chaos experiments if system stability is required",
+    "Verify that chaos experiments are properly labeled",
+    "Check the chaos experiment schedule and duration",
+    "Review chaos engineering practices to ensure proper safeguards are in place"
+  ],
+  "recommended_actions": [
+    "Check Chaos Mesh or other chaos engineering tools running on the cluster",
+    "Review active chaos experiments with `kubectl get podchaos,networkchaos -n chaos-testing`",
+    "Consider pausing chaos experiments if system stability is required",
+    "Verify that chaos experiments are properly labeled",
+    "Check the chaos experiment schedule and duration",
+    "Review chaos engineering practices to ensure proper safeguards are in place"
+  ],
+  "confidence_history": {
+    "2025-03-30T22:24:14.835801": {
+      "initial": 0.2
+    },
+    "2025-03-30T22:29:14.835801": {
+      "chaos": 0.4,
+      "cluster": 0.4,
+      "chaos_engineering": 0.4
+    },
+    "2025-03-30T22:34:14.835801": {
+      "chaos": 0.6,
+      "cluster": 0.6,
+      "chaos_engineering": 0.6
+    },
+    "2025-03-30T22:39:14.835801": {
+      "chaos": 0.95,
+      "cluster": 0.9,
+      "chaos_engineering": 0.95
+    }
+  },
+  "symptom_category": "pod-crash"
+}

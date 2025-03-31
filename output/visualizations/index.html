@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes RCA Visualizations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .viz-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .viz-item {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .viz-item h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .investigation-section {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #ddd;
+        }
+        .back-to-main {
+            margin-bottom: 20px;
+        }
+        .category {
+            display: inline-block;
+            font-size: 0.8em;
+            color: #7f8c8d;
+            font-weight: normal;
+        }
+        .filter-controls {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .filter-controls label {
+            margin-right: 10px;
+        }
+    </style>
+    <script>
+        function filterInvestigations() {
+            const categoryFilter = document.getElementById('category-filter').value.toUpperCase();
+            const sections = document.querySelectorAll('.investigation-section');
+            
+            sections.forEach(section => {
+                const categorySpan = section.querySelector('.category');
+                if (!categorySpan) return;
+                
+                const category = categorySpan.textContent.replace(/[\[\]]/g, '');
+                
+                if (categoryFilter === 'ALL' || category === categoryFilter) {
+                    section.style.display = '';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="back-to-main">
+            <a href="../index.html">← Back to Main Dashboard</a>
+        </div>
+        <h1>Kubernetes Root Cause Analysis Visualizations</h1>
+        
+        <div class="filter-controls">
+            <label for="category-filter">Filter by category:</label>
+            <select id="category-filter" onchange="filterInvestigations()">
+                <option value="ALL">All Categories</option>
+                <option value="POD-PENDING">Pod Pending</option>
+                <option value="POD-CRASH">Pod Crash</option>
+                <option value="SERVICE-UNREACHABLE">Service Unreachable</option>
+                <option value="NODE-NOT-READY">Node Not Ready</option>
+                <option value="API-SERVER-SLOW">API Server Slow</option>
+                <option value="GENERAL-HEALTH">General Health</option>
+                <option value="RESOURCE-EXHAUSTION">Resource Exhaustion</option>
+                <option value="NETWORKING-ISSUES">Networking Issues</option>
+                <option value="STORAGE-ISSUES">Storage Issues</option>
+                <option value="SECURITY-ISSUES">Security Issues</option>
+                <option value="CUSTOM">Custom</option>
+            </select>
+        </div>
+
+    <div class="investigation-section">
+        <h2>Investigation: investigation_20250330_224245 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_224245_graph.html" target="_blank">View Investigation Graph</a>
+            </div>
+            
+            <div class="viz-item">
+                <h3>Confidence Heatmap</h3>
+                <p>Visualization of confidence scores over time.</p>
+                <a href="./heatmaps/investigation_20250330_224245_heatmap.html" target="_blank">View Confidence Heatmap</a>
+            </div>
+        </div>
+        
+        <h3>Investigation Results</h3>
+        <p>
+            <a href="../investigations/investigation_20250330_224245_summary.md" target="_blank">View Investigation Summary</a> |
+            <a href="../investigations/investigation_20250330_224245.json" target="_blank">View Raw JSON</a>
+        </p>
+    </div>
+    <div class="investigation-section">
+        <h2>Investigation: investigation_20250330_224226 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_224226_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_224052 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_224052_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_223914 <span class="category">[POD-CRASH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_223914_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_223842 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_223842_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_222249 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_222249_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_222200 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_222200_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_222122 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_222122_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_222051 <span class="category">[IMAGE-PULL-ERROR]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_222051_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_222035 <span class="category">[POD-PENDING]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_222035_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_221916 <span class="category">[POD-PENDING]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_221916_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_221907 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_221907_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_221638 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_221638_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_221301 <span class="category">[POD-PENDING]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_221301_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_213645 <span class="category">[NETWORKING-ISSUES]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_213645_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_213535 <span class="category">[NETWORKING-ISSUES]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_213535_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_213429 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_213429_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_212804 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_212804_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_211954 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_211954_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210717 <span class="category">[POD-CRASH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210717_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210545 <span class="category">[POD-CRASH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210545_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210253 <span class="category">[NETWORKING-ISSUES]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210253_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210236 <span class="category">[NETWORKING-ISSUES]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210236_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210055 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210055_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210042 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210042_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_210038 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_210038_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205724 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205724_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205626 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205626_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205614 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205614_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205439 <span class="category">[POD-CRASH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205439_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205433 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205433_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205327 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205327_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205301 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205301_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205254 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205254_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205159 <span class="category">[RESOURCE-EXHAUSTION]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205159_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_205048 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_205048_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204917 <span class="category">[RESOURCE-EXHAUSTION]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204917_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204907 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204907_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204903 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204903_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204844 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204844_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204445 <span class="category">[POD-PENDING]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204445_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204437 <span class="category">[API-SERVER-SLOW]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204437_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204415 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204415_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204157 <span class="category">[RESOURCE-EXHAUSTION]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204157_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204133 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204133_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204118 <span class="category">[RESOURCE-EXHAUSTION]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204118_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_204004 <span class="category">[RESOURCE-EXHAUSTION]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_204004_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_203942 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_203942_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_203930 <span class="category">[GENERAL-HEALTH]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_203930_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_203758 <span class="category">[SERVICE-UNREACHABLE]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_203758_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+        <h2>Investigation: investigation_20250330_203752 <span class="category">[POD-PENDING]</span></h2>
+        
+        <div class="viz-list">
+            <div class="viz-item">
+                <h3>Investigation Graph</h3>
+                <p>Visualization of the investigation workflow and findings.</p>
+                <a href="./graphs/investigation_20250330_203752_graph.html" target="_blank">View Investigation Graph</a>
+            </div><div class="investigation-section">
+            <h2>Investigation: investigation_20250330_202001</h2>
+            
+            <div class="viz-list">
+                <div class="viz-item">
+                    <h3>Investigation Graph</h3>
+                    <p>Visualization of the investigation workflow and findings.</p>
+                    <a href="./graphs/investigation_20250330_202001_graph.html" target="_blank">View Investigation Graph</a>
+                </div><div class="investigation-section">
+            <h2>Investigation: investigation_20250330_200230</h2>
+            
+            <div class="viz-list">
+                <div class="viz-item">
+                    <h3>Investigation Graph</h3>
+                    <p>Visualization of the investigation workflow and findings.</p>
+                    <a href="./graphs/investigation_20250330_200230_graph.html" target="_blank">View Investigation Graph</a>
+                </div><div class="investigation-section">
+            <h2>Investigation: investigation_20250330_195842</h2>
+            
+            <div class="viz-list">
+                <div class="viz-item">
+                    <h3>Investigation Graph</h3>
+                    <p>Visualization of the investigation workflow and findings.</p>
+                    <a href="./graphs/investigation_20250330_195842_graph.html" target="_blank">View Investigation Graph</a>
+                </div>
+    </div>
+</body>
+</html>

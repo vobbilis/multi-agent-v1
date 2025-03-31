@@ -1,0 +1,88 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My pod nginx-pod in default namespace is using 1.2Gi memory but its limit is only 512Mi",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My pod nginx-pod in default namespace is using 1.2Gi memory but its limit is only 512Mi",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 3 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "metrics": {
+      "agent_type": "metrics",
+      "analysis": "High resource utilization detected across multiple containers. Memory usage patterns indicate potential memory leaks or improper resource requests/limits.",
+      "confidence": 0.91,
+      "potential_issues": [
+        "Memory usage exceeding container limits",
+        "Container resource limits not properly configured",
+        "Possible memory leaks in application code",
+        "Inefficient caching or buffer management"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Several pods are consuming abnormally high memory, which could impact overall cluster performance.",
+      "confidence": 0.89,
+      "potential_issues": [
+        "Resource limits too high or not set",
+        "Horizontal Pod Autoscaler not configured",
+        "No memory quotas set at namespace level",
+        "Container resource requests may be too low"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "metrics": 0.91,
+    "cluster": 0.89,
+    "resource_exhaustion": 0.91
+  },
+  "root_causes": [
+    {
+      "category": "resource_exhaustion",
+      "component": "container_memory",
+      "description": "Container memory consumption is excessive, indicating either application memory leaks or improper resource configuration.",
+      "confidence": 0.91
+    }
+  ],
+  "next_actions": [
+    "Add or adjust memory limits in container specifications",
+    "Implement memory profiling to identify memory leaks in application",
+    "Configure Horizontal Pod Autoscaler based on memory usage",
+    "Set resource quotas at the namespace level",
+    "Consider implementing vertical pod autoscaling"
+  ],
+  "recommended_actions": [
+    "Add or adjust memory limits in container specifications",
+    "Implement memory profiling to identify memory leaks in application",
+    "Configure Horizontal Pod Autoscaler based on memory usage",
+    "Set resource quotas at the namespace level",
+    "Consider implementing vertical pod autoscaling"
+  ],
+  "confidence_history": {
+    "2025-03-30T20:26:57.072451": {
+      "initial": 0.2
+    },
+    "2025-03-30T20:31:57.072451": {
+      "metrics": 0.4,
+      "cluster": 0.4,
+      "resource_exhaustion": 0.4
+    },
+    "2025-03-30T20:36:57.072451": {
+      "metrics": 0.6,
+      "cluster": 0.6,
+      "resource_exhaustion": 0.6
+    },
+    "2025-03-30T20:41:57.072451": {
+      "metrics": 0.91,
+      "cluster": 0.89,
+      "resource_exhaustion": 0.91
+    }
+  },
+  "symptom_category": "resource-exhaustion"
+}

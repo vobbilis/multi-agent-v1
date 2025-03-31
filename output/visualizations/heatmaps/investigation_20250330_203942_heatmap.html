@@ -1,0 +1,101 @@
+
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Confidence Score Heatmap</title>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                    background-color: #f5f5f5;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                h1 {
+                    color: #2c3e50;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                }
+                .chart-container {
+                    position: relative;
+                    height: 500px;
+                    width: 100%;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Confidence Score Evolution</h1>
+                <div class="chart-container">
+                    <canvas id="confidenceChart"></canvas>
+                </div>
+            </div>
+            
+            <script>
+                // Chart data
+                const labels = ["20:24:42", "20:29:42", "20:34:42", "20:39:42"];
+                const datasets = [{"label": "Initial", "data": [0.2], "backgroundColor": "rgba(52, 152, 219, 0.8)", "borderColor": "rgba(52, 152, 219, 1.0)", "borderWidth": 1}, {"label": "Cluster", "data": [0.4, 0.6, 0.75], "backgroundColor": "rgba(46, 204, 113, 0.8)", "borderColor": "rgba(46, 204, 113, 1.0)", "borderWidth": 1}, {"label": "Metrics", "data": [0.4, 0.6, 0.82], "backgroundColor": "rgba(231, 76, 60, 0.8)", "borderColor": "rgba(231, 76, 60, 1.0)", "borderWidth": 1}, {"label": "General Health", "data": [0.4, 0.6, 0.78], "backgroundColor": "rgba(243, 156, 18, 0.8)", "borderColor": "rgba(243, 156, 18, 1.0)", "borderWidth": 1}];
+                
+                // Create the chart
+                const ctx = document.getElementById('confidenceChart').getContext('2d');
+                const confidenceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1,
+                                title: {
+                                    display: true,
+                                    text: 'Confidence Score'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Confidence Score Evolution During Investigation',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            legend: {
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + (context.raw * 100).toFixed(1) + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            </script>
+        </body>
+        </html>
+        

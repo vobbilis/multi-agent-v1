@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invalid-image-deployment
+  namespace: default
+  labels:
+    app: invalid-image-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invalid-image-app
+  template:
+    metadata:
+      labels:
+        app: invalid-image-app
+    spec:
+      containers:
+      - name: invalid-container
+        image: nonexistent-registry/invalid-image:v1.0.0
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+        ports:
+        - containerPort: 8080 

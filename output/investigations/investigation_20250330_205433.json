@@ -1,0 +1,91 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My service named catalog-api is unreachable from outside the cluster. I can't connect to it using its external IP.",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My service named catalog-api is unreachable from outside the cluster. I can't connect to it using its external IP.",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 3 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "network": {
+      "agent_type": "network",
+      "analysis": "Service connectivity issues detected. External access to services is not functioning properly.",
+      "confidence": 0.87,
+      "potential_issues": [
+        "Service type might not be LoadBalancer or NodePort",
+        "Ingress controller not properly configured",
+        "Missing external IP allocation",
+        "Network policy blocking external traffic",
+        "kube-proxy configuration issues"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Cluster configuration appears to prevent external service access.",
+      "confidence": 0.82,
+      "potential_issues": [
+        "Service selectors may not match pod labels",
+        "Cloud provider integration issues for LoadBalancer services",
+        "Firewall or security group rules blocking traffic",
+        "Service ports may not match container ports"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "network": 0.87,
+    "cluster": 0.82,
+    "network_configuration": 0.87
+  },
+  "root_causes": [
+    {
+      "category": "network_configuration",
+      "component": "service_exposure",
+      "description": "Service 'catalog-api' is not properly configured for external access. This could be due to incorrect service type, missing ingress, or network policies.",
+      "confidence": 0.87
+    }
+  ],
+  "next_actions": [
+    "Verify that service 'catalog-api' is of type LoadBalancer or NodePort for external access",
+    "Check if an Ingress resource is properly configured and the Ingress controller is running",
+    "Ensure that any cloud provider integration for LoadBalancer services is working correctly",
+    "Verify that service selectors match the labels on your pods",
+    "Check for any NetworkPolicy resources that might be blocking external traffic",
+    "Verify that firewall or security group rules allow traffic to your service ports"
+  ],
+  "recommended_actions": [
+    "Verify that service 'catalog-api' is of type LoadBalancer or NodePort for external access",
+    "Check if an Ingress resource is properly configured and the Ingress controller is running",
+    "Ensure that any cloud provider integration for LoadBalancer services is working correctly",
+    "Verify that service selectors match the labels on your pods",
+    "Check for any NetworkPolicy resources that might be blocking external traffic",
+    "Verify that firewall or security group rules allow traffic to your service ports"
+  ],
+  "confidence_history": {
+    "2025-03-30T20:39:33.760560": {
+      "initial": 0.2
+    },
+    "2025-03-30T20:44:33.760560": {
+      "network": 0.4,
+      "cluster": 0.4,
+      "network_configuration": 0.4
+    },
+    "2025-03-30T20:49:33.760560": {
+      "network": 0.6,
+      "cluster": 0.6,
+      "network_configuration": 0.6
+    },
+    "2025-03-30T20:54:33.760560": {
+      "network": 0.87,
+      "cluster": 0.82,
+      "network_configuration": 0.87
+    }
+  },
+  "symptom_category": "service-unreachable"
+}

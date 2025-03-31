@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Root Cause Analysis System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .dashboard-item {
+            flex: 1;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .dashboard-item h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        .category {
+            display: inline-block;
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+        .filter-controls {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .filter-controls label {
+            margin-right: 10px;
+        }
+    </style>
+    <script>
+        function filterInvestigations() {
+            const categoryFilter = document.getElementById('category-filter').value.toUpperCase();
+            const items = document.querySelectorAll('.section li');
+            
+            items.forEach(item => {
+                const categorySpan = item.querySelector('.category');
+                if (!categorySpan) return;
+                
+                const category = categorySpan.textContent.replace(/[\[\]]/g, '');
+                
+                if (categoryFilter === 'ALL' || category === categoryFilter) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Kubernetes Root Cause Analysis System</h1>
+        
+        <div class="dashboard">
+            <div class="dashboard-item">
+                <h3>Visualizations</h3>
+                <p>Access all investigation visualizations</p>
+                <a href="./visualizations/index.html">View Visualizations</a>
+            </div>
+            
+            <div class="dashboard-item">
+                <h3>Investigations</h3>
+                <p>Access all investigation reports</p>
+                <a href="#investigations">View Investigations</a>
+            </div>
+        </div>
+        
+        <div class="section" id="investigations">
+            <h2>Recent Investigations</h2>
+            
+            <div class="filter-controls">
+                <label for="category-filter">Filter by category:</label>
+                <select id="category-filter" onchange="filterInvestigations()">
+                    <option value="ALL">All Categories</option>
+                    <option value="POD-PENDING">Pod Pending</option>
+                    <option value="POD-CRASH">Pod Crash</option>
+                    <option value="SERVICE-UNREACHABLE">Service Unreachable</option>
+                    <option value="NODE-NOT-READY">Node Not Ready</option>
+                    <option value="API-SERVER-SLOW">API Server Slow</option>
+                    <option value="GENERAL-HEALTH">General Health</option>
+                    <option value="RESOURCE-EXHAUSTION">Resource Exhaustion</option>
+                    <option value="NETWORKING-ISSUES">Networking Issues</option>
+                    <option value="STORAGE-ISSUES">Storage Issues</option>
+                    <option value="SECURITY-ISSUES">Security Issues</option>
+                    <option value="CUSTOM">Custom</option>
+                </select>
+            </div>
+            
+            <ul>
+                <li><a href="./investigations/investigation_20250330_224245_summary.md">Investigation 20250330_224245</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_224245.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_224245_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_224245_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_224226_summary.md">Investigation 20250330_224226</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_224226.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_224226_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_224226_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_224052_summary.md">Investigation 20250330_224052</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_224052.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_224052_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_224052_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_223914_summary.md">Investigation 20250330_223914</a> <span class="category">[POD-CRASH]</span> - <a href="./investigations/investigation_20250330_223914.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_223914_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_223914_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_223842_summary.md">Investigation 20250330_223842</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_223842.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_223842_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_223842_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_222249_summary.md">Investigation 20250330_222249</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_222249.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_222249_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_222249_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_222200_summary.md">Investigation 20250330_222200</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_222200.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_222200_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_222200_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_222122_summary.md">Investigation 20250330_222122</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_222122.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_222122_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_222122_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_222051_summary.md">Investigation 20250330_222051</a> <span class="category">[IMAGE-PULL-ERROR]</span> - <a href="./investigations/investigation_20250330_222051.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_222051_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_222051_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_222035_summary.md">Investigation 20250330_222035</a> <span class="category">[POD-PENDING]</span> - <a href="./investigations/investigation_20250330_222035.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_222035_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_222035_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_221916_summary.md">Investigation 20250330_221916</a> <span class="category">[POD-PENDING]</span> - <a href="./investigations/investigation_20250330_221916.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_221916_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_221916_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_221907_summary.md">Investigation 20250330_221907</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_221907.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_221907_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_221907_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_221638_summary.md">Investigation 20250330_221638</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_221638.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_221638_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_221638_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_221301_summary.md">Investigation 20250330_221301</a> <span class="category">[POD-PENDING]</span> - <a href="./investigations/investigation_20250330_221301.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_221301_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_221301_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_213645_summary.md">Investigation 20250330_213645</a> <span class="category">[NETWORKING-ISSUES]</span> - <a href="./investigations/investigation_20250330_213645.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_213645_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_213645_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_213535_summary.md">Investigation 20250330_213535</a> <span class="category">[NETWORKING-ISSUES]</span> - <a href="./investigations/investigation_20250330_213535.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_213535_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_213535_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_213429_summary.md">Investigation 20250330_213429</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_213429.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_213429_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_213429_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_212804_summary.md">Investigation 20250330_212804</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_212804.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_212804_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_212804_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_211954_summary.md">Investigation 20250330_211954</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_211954.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_211954_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_211954_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210717_summary.md">Investigation 20250330_210717</a> <span class="category">[POD-CRASH]</span> - <a href="./investigations/investigation_20250330_210717.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210717_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210717_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210545_summary.md">Investigation 20250330_210545</a> <span class="category">[POD-CRASH]</span> - <a href="./investigations/investigation_20250330_210545.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210545_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210545_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210253_summary.md">Investigation 20250330_210253</a> <span class="category">[NETWORKING-ISSUES]</span> - <a href="./investigations/investigation_20250330_210253.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210253_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210253_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210236_summary.md">Investigation 20250330_210236</a> <span class="category">[NETWORKING-ISSUES]</span> - <a href="./investigations/investigation_20250330_210236.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210236_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210236_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210055_summary.md">Investigation 20250330_210055</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_210055.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210055_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210055_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210042_summary.md">Investigation 20250330_210042</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_210042.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210042_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210042_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_210038_summary.md">Investigation 20250330_210038</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_210038.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_210038_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_210038_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205724_summary.md">Investigation 20250330_205724</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205724.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205724_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205724_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205626_summary.md">Investigation 20250330_205626</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205626.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205626_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205626_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205614_summary.md">Investigation 20250330_205614</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205614.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205614_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205614_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205439_summary.md">Investigation 20250330_205439</a> <span class="category">[POD-CRASH]</span> - <a href="./investigations/investigation_20250330_205439.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205439_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205439_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205433_summary.md">Investigation 20250330_205433</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205433.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205433_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205433_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205327_summary.md">Investigation 20250330_205327</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205327.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205327_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205327_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205301_summary.md">Investigation 20250330_205301</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_205301.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205301_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205301_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205254_summary.md">Investigation 20250330_205254</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_205254.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205254_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205254_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205159_summary.md">Investigation 20250330_205159</a> <span class="category">[RESOURCE-EXHAUSTION]</span> - <a href="./investigations/investigation_20250330_205159.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205159_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205159_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_205048_summary.md">Investigation 20250330_205048</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_205048.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_205048_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_205048_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204917_summary.md">Investigation 20250330_204917</a> <span class="category">[RESOURCE-EXHAUSTION]</span> - <a href="./investigations/investigation_20250330_204917.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204917_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204917_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204907_summary.md">Investigation 20250330_204907</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_204907.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204907_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204907_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204903_summary.md">Investigation 20250330_204903</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_204903.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204903_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204903_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204844_summary.md">Investigation 20250330_204844</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_204844.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204844_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204844_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204445_summary.md">Investigation 20250330_204445</a> <span class="category">[POD-PENDING]</span> - <a href="./investigations/investigation_20250330_204445.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204445_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204445_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204437_summary.md">Investigation 20250330_204437</a> <span class="category">[API-SERVER-SLOW]</span> - <a href="./investigations/investigation_20250330_204437.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204437_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204437_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204415_summary.md">Investigation 20250330_204415</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_204415.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204415_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204415_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204157_summary.md">Investigation 20250330_204157</a> <span class="category">[RESOURCE-EXHAUSTION]</span> - <a href="./investigations/investigation_20250330_204157.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204157_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204157_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204133_summary.md">Investigation 20250330_204133</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_204133.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204133_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204133_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204118_summary.md">Investigation 20250330_204118</a> <span class="category">[RESOURCE-EXHAUSTION]</span> - <a href="./investigations/investigation_20250330_204118.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204118_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204118_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_204004_summary.md">Investigation 20250330_204004</a> <span class="category">[RESOURCE-EXHAUSTION]</span> - <a href="./investigations/investigation_20250330_204004.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_204004_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_204004_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_203942_summary.md">Investigation 20250330_203942</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_203942.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_203942_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_203942_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_203930_summary.md">Investigation 20250330_203930</a> <span class="category">[GENERAL-HEALTH]</span> - <a href="./investigations/investigation_20250330_203930.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_203930_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_203930_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_203758_summary.md">Investigation 20250330_203758</a> <span class="category">[SERVICE-UNREACHABLE]</span> - <a href="./investigations/investigation_20250330_203758.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_203758_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_203758_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_203752_summary.md">Investigation 20250330_203752</a> <span class="category">[POD-PENDING]</span> - <a href="./investigations/investigation_20250330_203752.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_203752_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_203752_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_202001_summary.md">Investigation 20250330_202001</a> <span class="category">[GENERAL]</span> - <a href="./investigations/investigation_20250330_202001.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_202001_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_202001_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_200230_summary.md">Investigation 20250330_200230</a> <span class="category">[GENERAL]</span> - <a href="./investigations/investigation_20250330_200230.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_200230_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_200230_heatmap.html">Heatmap</a></li>
+<li><a href="./investigations/investigation_20250330_195842_summary.md">Investigation 20250330_195842</a> <span class="category">[GENERAL]</span> - <a href="./investigations/investigation_20250330_195842.json">JSON</a> - <a href="./visualizations/graphs/investigation_20250330_195842_graph.html">Graph</a> - <a href="./visualizations/heatmaps/investigation_20250330_195842_heatmap.html">Heatmap</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

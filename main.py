@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Import the workflow
 from graph.workflow import run_investigation
 from utils.visualizations import generate_investigation_graph
-from run_investigation import analyze_symptoms, get_symptom_preset, SYMPTOM_CATEGORIES
+from bin.run_investigation import analyze_symptoms, get_symptom_preset, SYMPTOM_CATEGORIES
 
 def setup_langsmith():
     """Set up LangSmith for tracing and debugging"""

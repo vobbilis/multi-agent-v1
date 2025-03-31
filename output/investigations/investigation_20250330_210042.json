@@ -1,0 +1,82 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My internal-proxy service pods keep restarting",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My internal-proxy service pods keep restarting",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 1 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "General health check completed. Cluster appears to be functioning normally.",
+      "confidence": 0.75,
+      "potential_issues": [
+        "Some pods may be experiencing intermittent readiness issues",
+        "API server performance could be optimized",
+        "Consider upgrading Kubernetes version for latest features"
+      ]
+    },
+    "metrics": {
+      "agent_type": "metrics",
+      "analysis": "Resource utilization is within normal parameters.",
+      "confidence": 0.82,
+      "potential_issues": [
+        "Some nodes showing increasing CPU trends over time",
+        "Memory utilization growing steadily on worker nodes",
+        "Consider implementing resource quotas on namespaces"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "cluster": 0.75,
+    "metrics": 0.82,
+    "general_health": 0.78
+  },
+  "root_causes": [
+    {
+      "category": "general_health",
+      "component": "cluster_overall",
+      "description": "No significant issues detected. Cluster is performing within expected parameters.",
+      "confidence": 0.78
+    }
+  ],
+  "next_actions": [
+    "Continue monitoring resource utilization trends",
+    "Consider implementing autoscaling for applications with variable loads",
+    "Review pod scheduling strategies for optimal resource distribution"
+  ],
+  "recommended_actions": [
+    "Continue monitoring resource utilization trends",
+    "Consider implementing autoscaling for applications with variable loads",
+    "Review pod scheduling strategies for optimal resource distribution"
+  ],
+  "confidence_history": {
+    "2025-03-30T20:45:42.169013": {
+      "initial": 0.2
+    },
+    "2025-03-30T20:50:42.169013": {
+      "cluster": 0.4,
+      "metrics": 0.4,
+      "general_health": 0.4
+    },
+    "2025-03-30T20:55:42.169013": {
+      "cluster": 0.6,
+      "metrics": 0.6,
+      "general_health": 0.6
+    },
+    "2025-03-30T21:00:42.169013": {
+      "cluster": 0.75,
+      "metrics": 0.82,
+      "general_health": 0.78
+    }
+  },
+  "symptom_category": "general-health"
+}

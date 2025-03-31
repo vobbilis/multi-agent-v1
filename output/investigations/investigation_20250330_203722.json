@@ -1,0 +1,78 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My pod is in Pending state in the default namespace. I think it might be related to resources.",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My pod is in Pending state in the default namespace. I think it might be related to resources.",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 3 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "metrics": {
+      "agent_type": "metrics",
+      "analysis": "Resource constraints detected. Some nodes are experiencing high resource utilization.",
+      "confidence": 0.88,
+      "potential_issues": [
+        "Memory pressure on worker nodes",
+        "CPU limits exceeded on several pods",
+        "Resource requests too high for available capacity"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Pending pods detected due to insufficient resources in the cluster.",
+      "confidence": 0.92,
+      "potential_issues": [
+        "Insufficient memory on all worker nodes",
+        "Resource requests too high for pod scheduling",
+        "Node affinity rules limiting scheduling options"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "metrics": 0.88,
+    "cluster": 0.92,
+    "resource_exhaustion": 0.92
+  },
+  "root_causes": [
+    {
+      "category": "resource_exhaustion",
+      "component": "memory",
+      "description": "Insufficient memory available on worker nodes to schedule new pods.",
+      "confidence": 0.92
+    }
+  ],
+  "next_actions": [
+    "Increase cluster capacity by adding new worker nodes",
+    "Reduce memory requests in pod specifications if they are set too high",
+    "Optimize existing workloads to use less memory",
+    "Consider implementing pod autoscaler to better handle resource allocation"
+  ],
+  "confidence_history": {
+    "2025-03-30T20:22:22.930291": {
+      "initial": 0.2
+    },
+    "2025-03-30T20:27:22.930291": {
+      "metrics": 0.4,
+      "cluster": 0.4,
+      "resource_exhaustion": 0.4
+    },
+    "2025-03-30T20:32:22.930291": {
+      "metrics": 0.6,
+      "cluster": 0.6,
+      "resource_exhaustion": 0.6
+    },
+    "2025-03-30T20:37:22.930291": {
+      "metrics": 0.88,
+      "cluster": 0.92,
+      "resource_exhaustion": 0.92
+    }
+  },
+  "symptom_category": "pod-pending"
+}

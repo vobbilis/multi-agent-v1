@@ -1,0 +1,61 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My pod invalid-image-deployment in default namespace is stuck in ImagePullBackOff status",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My pod invalid-image-deployment in default namespace is stuck in ImagePullBackOff status",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 1 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "container_image": {
+      "agent_type": "workload",
+      "analysis": "Image pull failures detected. The container runtime cannot pull the specified image.",
+      "confidence": 0.92,
+      "potential_issues": [
+        "Image tag is invalid or does not exist",
+        "Registry authentication failed",
+        "Private registry requires imagePullSecret",
+        "Registry is temporarily unavailable",
+        "Network connectivity issues to the registry",
+        "Container runtime has insufficient privileges"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Cluster is configured correctly but cannot access required container images.",
+      "confidence": 0.88,
+      "potential_issues": [
+        "Node network configuration prevents registry access",
+        "Missing or invalid imagePullSecrets",
+        "Registry rate limiting or authentication issues"
+      ]
+    }
+  },
+  "confidence_scores": {},
+  "root_causes": [
+    {
+      "category": "image_registry",
+      "component": "container_image",
+      "description": "Cannot pull container image for 'invalid-image-deployment'. This could be due to an invalid image name, missing registry credentials, or network connectivity issues.",
+      "confidence": 0.92
+    }
+  ],
+  "next_actions": [],
+  "recommended_actions": [],
+  "confidence_history": {
+    "2025-03-30T22:05:51.364147": {
+      "initial": 0.2
+    },
+    "2025-03-30T22:10:51.364147": {},
+    "2025-03-30T22:15:51.364147": {},
+    "2025-03-30T22:20:51.364147": {}
+  },
+  "symptom_category": "image-pull-error"
+}

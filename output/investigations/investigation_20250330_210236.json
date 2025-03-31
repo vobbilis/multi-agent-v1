@@ -1,0 +1,97 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My internal-proxy-info-app-service is responding very slowly with high latency",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My internal-proxy-info-app-service is responding very slowly with high latency",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 1 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "network": {
+      "agent_type": "network",
+      "analysis": "Network latency issues detected affecting service communication.",
+      "confidence": 0.89,
+      "potential_issues": [
+        "High network latency between services",
+        "Network congestion in the cluster",
+        "Possible network policy restricting throughput",
+        "CNI plugin configuration issues",
+        "Microservice communication inefficiencies",
+        "Potential DDoS or high traffic situations"
+      ]
+    },
+    "metrics": {
+      "agent_type": "metrics",
+      "analysis": "Service response times have degraded significantly.",
+      "confidence": 0.85,
+      "potential_issues": [
+        "Network latency spikes detected",
+        "Inter-pod communication delays",
+        "DNS resolution slowdowns",
+        "Service mesh configuration issues",
+        "Proxy or ingress controller bottlenecks"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "network": 0.89,
+    "metrics": 0.85,
+    "network_performance": 0.89
+  },
+  "root_causes": [
+    {
+      "category": "network_performance",
+      "component": "service_latency",
+      "description": "Service 'is' is experiencing high network latency. This could be due to network congestion, misconfiguration, or possible chaos engineering experiments.",
+      "confidence": 0.89
+    }
+  ],
+  "next_actions": [
+    "Check for network policy affecting traffic to 'is'",
+    "Examine network telemetry for congestion patterns",
+    "Verify if any chaos engineering experiments are currently running on the cluster",
+    "Analyze service mesh configuration if implemented",
+    "Check for recent changes in network infrastructure",
+    "Monitor pod-to-pod communication latency",
+    "Review QoS settings for critical services",
+    "Check for noisy neighbor pods consuming network resources"
+  ],
+  "recommended_actions": [
+    "Check for network policy affecting traffic to 'is'",
+    "Examine network telemetry for congestion patterns",
+    "Verify if any chaos engineering experiments are currently running on the cluster",
+    "Analyze service mesh configuration if implemented",
+    "Check for recent changes in network infrastructure",
+    "Monitor pod-to-pod communication latency",
+    "Review QoS settings for critical services",
+    "Check for noisy neighbor pods consuming network resources"
+  ],
+  "confidence_history": {
+    "2025-03-30T20:47:36.318337": {
+      "initial": 0.2
+    },
+    "2025-03-30T20:52:36.318337": {
+      "network": 0.4,
+      "metrics": 0.4,
+      "network_performance": 0.4
+    },
+    "2025-03-30T20:57:36.318337": {
+      "network": 0.6,
+      "metrics": 0.6,
+      "network_performance": 0.6
+    },
+    "2025-03-30T21:02:36.318337": {
+      "network": 0.89,
+      "metrics": 0.85,
+      "network_performance": 0.89
+    }
+  },
+  "symptom_category": "networking-issues"
+}

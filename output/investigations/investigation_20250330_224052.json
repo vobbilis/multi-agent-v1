@@ -1,0 +1,81 @@
+{
+  "investigation_phase": "root_cause_determination",
+  "initial_symptoms": "My pod is stuck in ImagePullBackOff status and can't start",
+  "evidence": [
+    {
+      "type": "user_report",
+      "description": "My pod is stuck in ImagePullBackOff status and can't start",
+      "reliability": 0.9
+    },
+    {
+      "type": "cluster_state",
+      "description": "Cluster has 1 nodes",
+      "reliability": 0.95
+    }
+  ],
+  "findings": {
+    "container_image": {
+      "agent_type": "events",
+      "analysis": "Image pull failures detected. The container runtime cannot pull the specified image.",
+      "confidence": 0.92,
+      "potential_issues": [
+        "Image tag is invalid or does not exist",
+        "Registry authentication failed",
+        "Private registry requires imagePullSecret",
+        "Registry is temporarily unavailable",
+        "Network connectivity issues to the registry",
+        "Container runtime has insufficient privileges"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Cluster is configured correctly but cannot access required container images.",
+      "confidence": 0.88,
+      "potential_issues": [
+        "Node network configuration prevents registry access",
+        "Missing or invalid imagePullSecrets",
+        "Registry rate limiting or authentication issues"
+      ]
+    }
+  },
+  "confidence_scores": {
+    "image_registry": 0.92,
+    "container_image": 0.92
+  },
+  "root_causes": [
+    {
+      "category": "image_registry",
+      "component": "container_image",
+      "description": "Cannot pull container image for 'is'. This could be due to an invalid image name, missing registry credentials, or network connectivity issues.",
+      "confidence": 0.92
+    }
+  ],
+  "next_actions": [],
+  "recommended_actions": [
+    "Verify the image name and tag are correct",
+    "Check for typos in the image reference",
+    "Ensure registry credentials are properly configured as Kubernetes secrets",
+    "Verify network connectivity to the container registry",
+    "Check if the image exists in the specified registry",
+    "Test image pull manually with 'docker pull' or 'crictl pull'",
+    "Check for registry rate limiting or authentication issues"
+  ],
+  "confidence_history": {
+    "2025-03-30T22:25:52.222713": {
+      "initial": 0.2
+    },
+    "2025-03-30T22:30:52.222713": {
+      "image_registry": 0.4,
+      "container_image": 0.4
+    },
+    "2025-03-30T22:35:52.222713": {
+      "image_registry": 0.6,
+      "container_image": 0.6
+    },
+    "2025-03-30T22:40:52.222713": {
+      "image_registry": 0.92,
+      "container_image": 0.92
+    }
+  },
+  "symptom_category": "image-pull-error"
+}

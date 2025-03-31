@@ -1,0 +1,7 @@
+{
+  "investigation_phase": "error",
+  "initial_symptoms": "Perform a general health check of my Kubernetes cluster. Look for any potential issues or configuration problems.",
+  "error": "At key 'evidence': Can receive only one value per step. Use an Annotated key to handle multiple values.\nFor troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/INVALID_CONCURRENT_GRAPH_UPDATE",
+  "timestamp": "2025-03-30T21:28:04.173955",
+  "symptom_category": "general-health"
+}

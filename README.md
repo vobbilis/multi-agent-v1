@@ -19,6 +19,38 @@ This project implements a sophisticated multi-agent system for Kubernetes root c
 - **Metrics Analysis**: Support for Kubernetes Metrics API and Prometheus with OAuth2 authentication
 - **Cluster Analysis**: Analysis of control plane components (API Server, Scheduler, Controller Manager, ETCD) and cluster objects (Pods, Services, etc.)
 
+## Directory Structure
+
+The project has been organized into the following directory structure:
+
+### Main Directories
+
+- `agents/`: Contains all specialist agent implementations
+- `bin/`: Core executable scripts
+- `chaos-tests/`: Chaos engineering test YAML files
+- `docs/`: Documentation
+- `examples/`: Example scripts and files
+- `k8s-manifests/`: Kubernetes manifests for testing
+- `k8s_analyzer/`: Kubernetes analysis modules
+- `output/`: Generated output from investigations
+- `prompts/`: Prompt templates for agents
+- `scripts/`: Utility shell scripts
+- `tests/`: Test suite
+- `utils/`: Utility functions and helpers
+
+### Test Structure
+
+- `tests/integration_tests/`: Tests for agent interactions and integration
+- `tests/specialist_agents/`: Tests for individual specialist agents
+- `tests/unit/`: Unit tests for core components
+- `tests/workflow_tests/`: Tests for the full analysis workflow
+
+### Main Scripts
+
+- `run_investigation.py`: Symlink to main investigation script
+- `run_live_cluster.py`: Symlink to script for live cluster analysis
+- `workflow_investigation.py`: Symlink to workflow-based investigation script
+
 ## Architecture
 
 The system consists of:

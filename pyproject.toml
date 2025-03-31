@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[project]
+name = "k8s-analyzer"
+version = "0.1.0"
+description = "Kubernetes Root Cause Analysis Engine"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "langchain>=0.0.267",
+    "langgraph>=0.0.17",
+    "pytest>=7.0.0",
+    "kubernetes>=26.1.0",
+    "openai>=0.27.0",
+]
+
+[project.scripts]
+run-investigation = "bin.run_investigation:main"
+run-live-cluster = "bin.run_live_cluster:main"
+workflow-investigation = "bin.workflow_investigation:main"

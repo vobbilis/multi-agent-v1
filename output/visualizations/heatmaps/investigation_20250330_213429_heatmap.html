@@ -1,0 +1,337 @@
+
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Kubernetes Agent Confidence Heatmap</title>
+            <script src="https://d3js.org/d3.v7.min.js"></script>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                    background-color: #f5f5f5;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                h1, h2 {
+                    color: #2c3e50;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                }
+                .heatmap-container {
+                    margin-top: 20px;
+                    overflow-x: auto;
+                }
+                .axis text {
+                    font-size: 12px;
+                }
+                .axis path,
+                .axis line {
+                    fill: none;
+                    stroke: #000;
+                    shape-rendering: crispEdges;
+                }
+                .cell-text {
+                    font-weight: bold;
+                    text-anchor: middle;
+                    dominant-baseline: central;
+                }
+                .tooltip {
+                    position: absolute;
+                    background-color: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    font-size: 12px;
+                    pointer-events: none;
+                }
+                .legend {
+                    margin-top: 20px;
+                    text-align: center;
+                }
+                .legend-item {
+                    display: inline-block;
+                    margin: 0 10px;
+                }
+                .legend-color {
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    margin-right: 5px;
+                    vertical-align: middle;
+                }
+                .timeline {
+                    margin-top: 20px;
+                    text-align: center;
+                }
+                .timeline-point {
+                    display: inline-block;
+                    margin: 0 10px;
+                    text-align: center;
+                }
+                .timeline-marker {
+                    display: inline-block;
+                    width: 15px;
+                    height: 15px;
+                    background-color: #3498db;
+                    border-radius: 50%;
+                    margin-bottom: 5px;
+                }
+                .line-chart {
+                    margin-top: 40px;
+                    height: 200px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Agent Confidence Evolution</h1>
+                <p>This visualization shows how the confidence levels of different agent assessments evolved during the investigation.</p>
+                
+                <div class="heatmap-container" id="heatmap"></div>
+                
+                <div id="lineChart" class="line-chart"></div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f7fbff;"></div>
+                        <span>0%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #9ecae1;"></div>
+                        <span>50%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #08306b;"></div>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                // Data for the heatmap
+                const dataset = [{"timepoint": "2025-03-30T21:19:29.504873", "cluster": 0, "initial": 0.2, "network": 0, "network_configuration": 0}, {"timepoint": "2025-03-30T21:24:29.504873", "cluster": 0.4, "initial": 0, "network": 0.4, "network_configuration": 0.4}, {"timepoint": "2025-03-30T21:29:29.504873", "cluster": 0.6, "initial": 0, "network": 0.6, "network_configuration": 0.6}, {"timepoint": "2025-03-30T21:34:29.504873", "cluster": 0.82, "initial": 0, "network": 0.87, "network_configuration": 0.87}];
+                const areas = ["cluster", "initial", "network", "network_configuration"];
+                const timepoints = ["2025-03-30T21:19:29.504873", "2025-03-30T21:24:29.504873", "2025-03-30T21:29:29.504873", "2025-03-30T21:34:29.504873"];
+                
+                // Set up dimensions
+                const margin = {top: 50, right: 50, bottom: 100, left: 100};
+                const width = Math.max(600, areas.length * 80) - margin.left - margin.right;
+                const height = Math.max(400, timepoints.length * 60) - margin.top - margin.bottom;
+                
+                // Create SVG for the heatmap
+                const svg = d3.select("#heatmap")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+                
+                // Create color scale
+                const colorScale = d3.scaleSequential()
+                    .interpolator(d3.interpolateBlues)
+                    .domain([0, 1]);
+                
+                // Create x-scale for areas
+                const x = d3.scaleBand()
+                    .domain(areas)
+                    .range([0, width])
+                    .padding(0.05);
+                
+                // Create y-scale for timepoints
+                const y = d3.scaleBand()
+                    .domain(timepoints)
+                    .range([0, height])
+                    .padding(0.05);
+                
+                // Create x-axis
+                svg.append("g")
+                    .attr("class", "axis")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-.8em")
+                    .attr("dy", ".15em")
+                    .attr("transform", "rotate(-45)");
+                
+                // Create y-axis
+                svg.append("g")
+                    .attr("class", "axis")
+                    .call(d3.axisLeft(y));
+                
+                // Create tooltip
+                const tooltip = d3.select("body")
+                    .append("div")
+                    .attr("class", "tooltip")
+                    .style("opacity", 0);
+                
+                // Create the heatmap cells
+                dataset.forEach(d => {
+                    const timepoint = d.timepoint;
+                    
+                    areas.forEach(area => {
+                        const value = d[area] || 0;
+                        
+                        svg.append("rect")
+                            .attr("x", x(area))
+                            .attr("y", y(timepoint))
+                            .attr("width", x.bandwidth())
+                            .attr("height", y.bandwidth())
+                            .style("fill", colorScale(value))
+                            .on("mouseover", function(event) {
+                                tooltip.transition()
+                                    .duration(200)
+                                    .style("opacity", .9);
+                                tooltip.html(`${area}: ${Math.round(value * 100)}%<br>Time: ${timepoint}`)
+                                    .style("left", (event.pageX + 10) + "px")
+                                    .style("top", (event.pageY - 28) + "px");
+                            })
+                            .on("mouseout", function() {
+                                tooltip.transition()
+                                    .duration(500)
+                                    .style("opacity", 0);
+                            });
+                        
+                        // Add text for cells with significant values
+                        if (value >= 0.25) {
+                            svg.append("text")
+                                .attr("class", "cell-text")
+                                .attr("x", x(area) + x.bandwidth() / 2)
+                                .attr("y", y(timepoint) + y.bandwidth() / 2)
+                                .text(`${Math.round(value * 100)}%`)
+                                .style("fill", value > 0.6 ? "white" : "black");
+                        }
+                    });
+                });
+                
+                // Add title to the graph
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", -margin.top / 2)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .text("Agent Confidence Heatmap");
+                
+                // Line chart showing confidence evolution over time
+                const lineChart = d3.select("#lineChart")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", 250)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${20})`);
+                
+                // Format data for line chart
+                const lineData = areas.map(area => {
+                    return {
+                        area: area,
+                        values: dataset.map(d => ({
+                            timepoint: d.timepoint,
+                            value: d[area] || 0
+                        }))
+                    };
+                });
+                
+                // X and Y scales for the line chart
+                const xLine = d3.scalePoint()
+                    .domain(timepoints)
+                    .range([0, width]);
+                
+                const yLine = d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([200, 0]);
+                
+                // Color scale for lines
+                const lineColorScale = d3.scaleOrdinal(d3.schemeCategory10);
+                
+                // Add X axis
+                lineChart.append("g")
+                    .attr("transform", `translate(0,${200})`)
+                    .call(d3.axisBottom(xLine));
+                
+                // Add Y axis
+                lineChart.append("g")
+                    .call(d3.axisLeft(yLine).ticks(5).tickFormat(d => d * 100 + "%"));
+                
+                // Add lines
+                const line = d3.line()
+                    .x(d => xLine(d.timepoint))
+                    .y(d => yLine(d.value));
+                
+                lineChart.selectAll(".line")
+                    .data(lineData)
+                    .enter()
+                    .append("path")
+                    .attr("class", "line")
+                    .attr("d", d => line(d.values))
+                    .style("fill", "none")
+                    .style("stroke", (d, i) => lineColorScale(i))
+                    .style("stroke-width", 2);
+                
+                // Add dots
+                lineData.forEach((d, i) => {
+                    lineChart.selectAll(".dot-" + i)
+                        .data(d.values)
+                        .enter()
+                        .append("circle")
+                        .attr("class", "dot")
+                        .attr("cx", d => xLine(d.timepoint))
+                        .attr("cy", d => yLine(d.value))
+                        .attr("r", 5)
+                        .style("fill", lineColorScale(i))
+                        .on("mouseover", function(event, d) {
+                            tooltip.transition()
+                                .duration(200)
+                                .style("opacity", .9);
+                            tooltip.html(`${lineData[i].area}: ${Math.round(d.value * 100)}%<br>Time: ${d.timepoint}`)
+                                .style("left", (event.pageX + 10) + "px")
+                                .style("top", (event.pageY - 28) + "px");
+                        })
+                        .on("mouseout", function() {
+                            tooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        });
+                });
+                
+                // Add legend
+                const legend = lineChart.selectAll(".legend")
+                    .data(areas)
+                    .enter()
+                    .append("g")
+                    .attr("class", "legend")
+                    .attr("transform", (d, i) => `translate(0,${i * 20})`);
+                
+                legend.append("rect")
+                    .attr("x", width + 10)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .style("fill", (d, i) => lineColorScale(i));
+                
+                legend.append("text")
+                    .attr("x", width + 35)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "start")
+                    .text(d => d);
+                
+                // Chart title
+                lineChart.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", -5)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "14px")
+                    .text("Confidence Evolution Over Time");
+            </script>
+        </body>
+        </html>
+        

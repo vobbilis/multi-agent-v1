@@ -1,0 +1,113 @@
+{
+  "investigation_phase": "recommendation_generation",
+  "initial_symptoms": "\n        Several pods in the production namespace keep restarting with CrashLoopBackOff status.\n        The application logs show connection timeouts when trying to reach the database service.\n        This started approximately 30 minutes after a network policy update was applied.\n        CPU usage appears to be spiking during peak traffic hours.\n        Some pods are being OOMKilled occasionally.\n        Control plane nodes are reporting disk pressure warnings.\n        ",
+  "root_causes": [
+    {
+      "category": "network_policy",
+      "component": "allow-backend-to-database",
+      "description": "The recently applied network policy is incorrectly configured and is blocking connections from backend pods to the database service.",
+      "confidence": 0.85,
+      "supporting_evidence": [
+        "Network policy analysis",
+        "Connection timeout patterns",
+        "Temporal correlation with policy update"
+      ]
+    },
+    {
+      "category": "resource_constraint",
+      "component": "node_disk_pressure",
+      "description": "Control plane nodes are experiencing disk pressure which is affecting the scheduler and API server performance.",
+      "confidence": 0.78,
+      "supporting_evidence": [
+        "Control plane metrics",
+        "Node status reports",
+        "API server latency patterns"
+      ]
+    },
+    {
+      "category": "memory_limit",
+      "component": "pod_configuration",
+      "description": "Pod memory limits are set too low for the current workload, causing OOMKilled events during peak times.",
+      "confidence": 0.72,
+      "supporting_evidence": [
+        "Pod metrics analysis",
+        "OOMKilled event patterns",
+        "Memory usage spikes"
+      ]
+    }
+  ],
+  "next_actions": [
+    "Update the network policy to correctly allow backend pods to communicate with the database service on port 5432",
+    "Increase available disk space on control plane nodes by removing unused images and logs",
+    "Adjust pod memory limits to accommodate peak usage patterns",
+    "Consider horizontal scaling of backend services to distribute load"
+  ],
+  "prevention_measures": [
+    "Implement network policy testing in pre-production environment before applying to production",
+    "Set up automated monitoring and alerts for disk pressure on control plane nodes",
+    "Review and adjust resource quotas based on regular usage patterns analysis",
+    "Implement resource limit recommendations based on historical usage data"
+  ],
+  "confidence_scores": {
+    "network": 0.85,
+    "network_policy": 0.92,
+    "service_connectivity": 0.79,
+    "disk_constraint": 0.82,
+    "memory_constraint": 0.78,
+    "control_plane": 0.76
+  },
+  "findings": {
+    "network": {
+      "agent_type": "network",
+      "analysis": "Network policies are blocking required communication paths between backend and database services.",
+      "confidence": 0.85,
+      "potential_issues": [
+        "Restrictive network policy on database service",
+        "Missing ingress rule for backend to database communication",
+        "Incorrect port specification in network policy"
+      ]
+    },
+    "metrics": {
+      "agent_type": "metrics",
+      "analysis": "Resource constraints are affecting pod stability and performance.",
+      "confidence": 0.76,
+      "potential_issues": [
+        "Memory limits too restrictive for workload",
+        "CPU throttling during peak times",
+        "High network latency correlating with connection timeouts"
+      ]
+    },
+    "cluster": {
+      "agent_type": "cluster",
+      "analysis": "Control plane components show signs of degraded performance due to disk pressure.",
+      "confidence": 0.78,
+      "potential_issues": [
+        "Disk pressure on control plane nodes",
+        "API server performance degradation",
+        "Scheduling delays affecting pod placement"
+      ]
+    }
+  },
+  "confidence_history": {
+    "2023-05-01T12:00:00": {
+      "network": 0.3,
+      "metrics": 0.2
+    },
+    "2023-05-01T12:05:00": {
+      "network": 0.5,
+      "metrics": 0.3,
+      "network_policy": 0.6
+    },
+    "2023-05-01T12:10:00": {
+      "network": 0.7,
+      "metrics": 0.4,
+      "network_policy": 0.8
+    },
+    "2023-05-01T12:15:00": {
+      "network": 0.85,
+      "metrics": 0.5,
+      "network_policy": 0.9,
+      "service_connectivity": 0.7
+    }
+  }
+}
