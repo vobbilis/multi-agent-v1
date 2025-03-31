@@ -25,3 +25,4 @@ dependencies = [
 run-investigation = "bin.run_investigation:main"
 run-live-cluster = "bin.run_live_cluster:main"
 workflow-investigation = "bin.workflow_investigation:main"
+

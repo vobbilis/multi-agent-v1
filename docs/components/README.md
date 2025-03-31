@@ -1,142 +1,152 @@
 # System Components
 
-This directory contains documentation for each component of the Multi-Agent Root Cause Analysis System. The system follows a modular architecture with specialized components that work together to analyze and diagnose problems in Kubernetes environments.
+## Overview
 
-## Component Overview
+This document provides an overview of the system components and their interactions.
 
-The system consists of the following core components:
+## Components
 
 ### Analysis Engine
 - [Analysis Engine Documentation](analysis_engine.md)
-- **Purpose**: Core analytical component that determines root causes
-- **Responsibilities**:
-  - Integrates findings from specialist agents
-  - Identifies causal relationships between events
-  - Applies LLM-based reasoning to determine root causes
-  - Generates confidence scores for different hypotheses
-  - Produces actionable recommendations
+- Core analysis component
+- Processes findings from specialist agents
+- Generates root cause analysis
+- Provides resolution recommendations
 
 ### Simulation Engine
 - [Simulation Engine Documentation](simulation_engine.md)
-- **Purpose**: Simulates and validates failure scenarios
-- **Responsibilities**:
-  - Creates controlled failure environments
-  - Validates root cause analysis accuracy
-  - Tests system resilience
-  - Provides training data for the analysis engine
-  - Supports scenario-based testing
+- Manages failure scenarios
+- Controls simulation environment
+- Handles scenario execution
+- Provides simulation results
 
 ### Specialist Agents
-The system includes specialized agents for different aspects of analysis:
+
+#### Master Agent
+- [Master Agent Documentation](specialist_agents/master_agent.md)
+- Coordinates all specialist agents
+- Manages analysis process
+- Handles agent communication
+- Makes high-level decisions
+
+#### Cluster Agent
+- [Cluster Agent Documentation](specialist_agents/cluster_agent.md)
+- Analyzes cluster-wide issues
+- Monitors cluster health
+- Tracks cluster resources
+- Validates cluster configurations
+
+#### Metrics Agent
+- [Metrics Agent Documentation](specialist_agents/metrics_agent.md)
+- Collects system metrics
+- Analyzes performance data
+- Tracks resource utilization
+- Manages metric alerts
+
+#### Network Agent
+- [Network Agent Documentation](specialist_agents/network_agent.md)
+- Analyzes network issues
+- Monitors network performance
+- Validates network configurations
+- Tracks network security
 
 #### Events Agent
 - [Events Agent Documentation](specialist_agents/events_agent.md)
-- **Purpose**: Processes and analyzes Kubernetes events
-- **Responsibilities**:
-  - Monitors cluster events
-  - Identifies event patterns
-  - Correlates events with incidents
-  - Provides event-based insights
+- Processes system events
+- Analyzes event patterns
+- Correlates related events
+- Generates event insights
 
 #### Logs Agent
 - [Logs Agent Documentation](specialist_agents/logs_agent.md)
-- **Purpose**: Analyzes log data for patterns and anomalies
-- **Responsibilities**:
-  - Collects and processes logs
-  - Identifies log patterns
-  - Correlates logs with events
-  - Provides log-based insights
+- Analyzes system logs
+- Identifies log patterns
+- Correlates log entries
+- Generates log insights
 
-## Component Communication
+## Communication
 
-Components communicate through a combination of:
+Components communicate through:
+- Message Queue
+- REST APIs
+- Shared Storage
+- gRPC calls
 
-1. **Message Queue**: Asynchronous communication for event distribution
-2. **REST APIs**: Synchronous interactions between components
-3. **Shared Storage**: For larger data sets and persistent information
-4. **Direct gRPC calls**: For high-performance, low-latency communication
+## Data Flow
 
-## Data Flow Between Components
+1. Incident Detection
+   - Events Agent detects incidents
+   - Logs Agent analyzes logs
+   - Metrics Agent monitors metrics
 
-1. **Incident Detection**:
-   - External systems or monitoring alerts trigger an incident
-   - Analysis Engine creates an investigation context
-   - Relevant specialist agents are activated
+2. Data Collection
+   - Specialist agents gather data
+   - Data is processed and normalized
+   - Information is stored
 
-2. **Data Collection**:
-   - Specialist agents gather data from their respective domains
-   - Data is normalized and preprocessed
-   - Initial patterns and anomalies are identified
+3. Finding Generation
+   - Agents analyze their data
+   - Findings are generated
+   - Results are aggregated
 
-3. **Finding Generation**:
-   - Specialist agents perform domain-specific analysis
-   - Findings are reported to the Analysis Engine
-   - Analysis Engine may request additional data as needed
+4. Root Cause Analysis
+   - Analysis Engine processes findings
+   - Patterns are identified
+   - Root causes are determined
 
-4. **Root Cause Analysis**:
-   - Analysis Engine receives integrated findings
-   - Causal relationships are identified
-   - Root cause hypotheses are generated and tested
+5. Results and Recommendations
+   - Analysis results are generated
+   - Resolution recommendations are provided
+   - Results are stored
 
-5. **Results and Recommendations**:
-   - Most likely root causes are determined
-   - Recommendations for resolution are generated
-   - Results are stored for future reference
-   - Notifications are sent through the API Gateway
+## Interfaces
 
-## Component Interfaces
+### Analysis Engine API
+- Process findings
+- Generate analysis
+- Provide recommendations
+- Update knowledge base
 
-Each component exposes well-defined interfaces:
+### Simulation Engine API
+- Execute scenarios
+- Control environment
+- Provide results
+- Manage state
 
-### Analysis Engine Interfaces
-- **Findings Ingestion API**: Consume agent findings
-- **Analysis API**: Trigger and manage analyses
-- **Results API**: Report analysis results
-- **Knowledge Query API**: Access historical data
+### Specialist Agent APIs
+- Collect data
+- Process information
+- Generate findings
+- Report status
 
-### Simulation Engine Interfaces
-- **Scenario API**: Create and manage test scenarios
-- **Validation API**: Validate analysis results
-- **Environment API**: Control test environments
-- **Results API**: Report simulation outcomes
+## Configuration
 
-### Specialist Agent Interfaces
-- **Task API**: Receive and process analysis tasks
-- **Findings API**: Report analysis findings
-- **Data Source API**: Connect to external data sources
-- **Health API**: Report agent health and status
+Components can be configured through:
+- Configuration files
+- Environment variables
+- Dynamic configuration API
+- Feature flags
 
-## Component Configuration
+## Development Guidelines
 
-Each component is configurable through:
+When developing components:
+- Follow modular design
+- Implement proper testing
+- Ensure resiliency
+- Maintain observability
+- Consider security
+- Optimize performance
 
-1. **Configuration Files**: YAML files for static configuration
-2. **Environment Variables**: For sensitive information and deployment-specific settings
-3. **Dynamic Configuration API**: For runtime configuration changes
-4. **Feature Flags**: For enabling/disabling specific functionality
+## Deployment
 
-## Component Development
-
-Guidelines for developing or extending components:
-
-1. **Modularity**: Components should have clear boundaries and responsibilities
-2. **Testability**: Components should be easily testable in isolation
-3. **Resiliency**: Components should handle failures gracefully
-4. **Observability**: Components should expose metrics, logs, and traces
-5. **Security**: Components should follow security best practices
-6. **Performance**: Components should be optimized for their specific role
-
-## Component Deployment
-
-Components can be deployed:
-
-1. **As Kubernetes Resources**: Deployments, StatefulSets, Jobs
-2. **As Standalone Services**: For external deployment
-3. **As Library Components**: For embedded use in other services
+Components can be deployed as:
+- Kubernetes resources
+- Standalone services
+- Library components
 
 ## Related Documentation
 
-- [System Architecture](../architecture/system_overview.md)
-- [API Reference](../api/api_reference.md)
-- [Deployment Guide](../deployment/deployment_guide.md)
-- [Security Guide](../deployment/security.md) 
+- [API Documentation](../api/README.md)
+- [Architecture Documentation](../architecture/README.md)
+- [Deployment Guide](../deployment/README.md)
+- [Development Guide](../development/README.md) 
