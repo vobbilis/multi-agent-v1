@@ -185,6 +185,7 @@ lerna-debug.log*
 # Reports and outputs
 *.md
 !README.md
+!docs/**/*.md
 *.json
 !package.json
 !k8s-test-manifests/**/*.json
@@ -192,3 +193,4 @@ lerna-debug.log*
 
 # Specific files from this project
 k8s_analyzer_enhanced.log*
+.qodo
