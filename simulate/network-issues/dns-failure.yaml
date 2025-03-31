@@ -1,0 +1,169 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-dns-issues
+  labels:
+    scenario: dns-failure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-dependent-app
+  namespace: simulation-dns-issues
+  labels:
+    app: dns-dependent-app
+    scenario: dns-failure
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dns-dependent-app
+  template:
+    metadata:
+      labels:
+        app: dns-dependent-app
+    spec:
+      containers:
+      - name: app
+        image: busybox:1.28
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "DNS Dependent App Starting..."
+          while true; do
+            echo "Attempting to resolve backend-service.simulation-dns-issues.svc.cluster.local..."
+            nslookup backend-service.simulation-dns-issues.svc.cluster.local || echo "DNS lookup failed"
+            echo "Attempting to resolve kubernetes.default.svc.cluster.local..."
+            nslookup kubernetes.default.svc.cluster.local || echo "DNS lookup failed"
+            echo "Sleeping for 5 seconds..."
+            sleep 5
+          done
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-service
+  namespace: simulation-dns-issues
+  labels:
+    app: backend-service
+    scenario: dns-failure
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-service
+  template:
+    metadata:
+      labels:
+        app: backend-service
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: simulation-dns-issues
+spec:
+  selector:
+    app: backend-service
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: coredns-overloader
+  namespace: simulation-dns-issues
+  labels:
+    scenario: dns-failure
+spec:
+  template:
+    spec:
+      containers:
+      - name: dns-load-generator
+        image: busybox:1.28
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting CoreDNS load generator..."
+          
+          # Function to generate random DNS names
+          generate_random_dns() {
+            local prefix="test-"
+            local suffix=".simulation-dns-issues.svc.cluster.local"
+            echo "${prefix}$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)${suffix}"
+          }
+          
+          # Generate heavy DNS load with parallel lookups
+          while true; do
+            for i in $(seq 1 100); do
+              random_dns=$(generate_random_dns)
+              nslookup $random_dns > /dev/null 2>&1 &
+              if [ $((i % 20)) -eq 0 ]; then
+                echo "Generated 20 parallel DNS lookups"
+              fi
+            done
+            echo "Completed 100 DNS lookups. Continuing load generation..."
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-failure-scenario-info
+  namespace: simulation-dns-issues
+data:
+  description: |
+    DNS Resolution Failure Scenario
+
+    This scenario simulates DNS resolution failures caused by CoreDNS issues or overload.
+    It deploys applications that depend on DNS resolution, as well as a job that generates
+    excessive DNS lookup requests to stress the CoreDNS pods.
+
+    Expected Symptoms:
+    - Intermittent or complete DNS resolution failures
+    - Applications reporting "could not resolve host" errors
+    - Increased latency for DNS lookups
+    - Service-to-service communication failures
+    - CoreDNS pods showing high CPU usage
+    - Potential pod restarts or crashes of CoreDNS
+
+    Root Cause:
+    The CoreDNS pods, which provide DNS resolution for Kubernetes clusters, are
+    experiencing performance issues due to excessive load, insufficient resources,
+    or misconfiguration. This causes DNS resolution failures throughout the cluster.
+
+    Resolution:
+    - Scale up CoreDNS deployment (increase replicas)
+    - Increase resource allocations for CoreDNS pods
+    - Apply DNS caching configurations
+    - Optimize CoreDNS configuration for better performance
+    - Consider implementing DNS policies to restrict unnecessary lookups
+    - Check for potential misconfiguration in CoreDNS ConfigMap
+  
+  investigation-symptoms: |
+    Applications in the 'simulation-dns-issues' namespace are reporting DNS resolution
+    failures. Services can't communicate with each other, and pod logs show "could not
+    resolve host" errors. This issue appeared suddenly and is affecting multiple applications. 

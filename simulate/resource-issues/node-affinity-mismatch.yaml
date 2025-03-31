@@ -1,0 +1,258 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-affinity-issues
+  labels:
+    scenario: node-affinity-mismatch
+---
+# Pod with node affinity requirements that cannot be satisfied
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unsatisfiable-affinity-pod
+  namespace: simulation-affinity-issues
+  labels:
+    app: unsatisfiable-affinity
+    scenario: node-affinity-mismatch
+spec:
+  # This pod will remain in Pending state because the required node affinity
+  # cannot be satisfied by any nodes in the cluster
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          # This requires a non-existent label
+          - key: kubernetes.io/instance-type
+            operator: In
+            values:
+            - "non-existent-instance-type"
+          # This requires a node to be in a non-existent zone
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values:
+            - "non-existent-zone"
+  containers:
+  - name: app
+    image: nginx:1.21
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+---
+# Deployment with node affinity requirements that cannot be satisfied
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unsatisfiable-affinity-deployment
+  namespace: simulation-affinity-issues
+  labels:
+    app: unsatisfiable-affinity
+    scenario: node-affinity-mismatch
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: unsatisfiable-affinity
+  template:
+    metadata:
+      labels:
+        app: unsatisfiable-affinity
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              # This requires nodes to have a special hardware label that doesn't exist
+              - key: hardware
+                operator: In
+                values:
+                - "special-gpu"
+              # This requires a specific OS that doesn't match any nodes
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - "solaris"  # Intentionally using an OS that's not commonly used in K8s
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+---
+# Deployment with satisfiable node affinity for comparison
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: satisfiable-affinity-deployment
+  namespace: simulation-affinity-issues
+  labels:
+    app: satisfiable-affinity
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: satisfiable-affinity
+  template:
+    metadata:
+      labels:
+        app: satisfiable-affinity
+    spec:
+      # This affinity should be satisfied by most Kubernetes clusters
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: Exists
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+---
+# Service for unsatisfiable deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: unsatisfiable-affinity-svc
+  namespace: simulation-affinity-issues
+spec:
+  selector:
+    app: unsatisfiable-affinity
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Service for satisfiable deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: satisfiable-affinity-svc
+  namespace: simulation-affinity-issues
+spec:
+  selector:
+    app: satisfiable-affinity
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Job to check node labels and pod status
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: affinity-status-checker
+  namespace: simulation-affinity-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: checker
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for scheduler to attempt to schedule pods
+          echo "Waiting for scheduler to process pods..."
+          sleep 30
+
+          echo "=== Node Information ==="
+          echo "Available Nodes:"
+          kubectl get nodes
+          
+          echo -e "\nNode Labels (to compare with affinity requirements):"
+          for node in $(kubectl get nodes -o=name); do
+            echo -e "\n$node labels:"
+            kubectl get $node --show-labels
+          done
+          
+          echo -e "\n=== Pod Status ==="
+          echo "Pods in simulation-affinity-issues namespace:"
+          kubectl get pods -n simulation-affinity-issues
+          
+          echo -e "\nUnsatisfiable Pod Details:"
+          kubectl describe pod unsatisfiable-affinity-pod -n simulation-affinity-issues
+          
+          echo -e "\n=== Deployment Status ==="
+          echo "Deployments in simulation-affinity-issues namespace:"
+          kubectl get deployments -n simulation-affinity-issues -o wide
+          
+          echo -e "\nUnsatisfiable Deployment Details:"
+          kubectl describe deployment unsatisfiable-affinity-deployment -n simulation-affinity-issues
+          
+          echo -e "\nSatisfiable Deployment Details:"
+          kubectl describe deployment satisfiable-affinity-deployment -n simulation-affinity-issues
+          
+          echo -e "\n=== ReplicaSets Status ==="
+          kubectl get rs -n simulation-affinity-issues
+          
+          echo -e "\n=== Events ==="
+          kubectl get events -n simulation-affinity-issues --sort-by=.metadata.creationTimestamp | tail -n 20
+          
+          echo -e "\nThe unsatisfiable affinity pods should remain in Pending state because the node affinity"
+          echo "requirements cannot be satisfied by any nodes in the cluster. This simulates a misconfiguration"
+          echo "where pods are configured with node affinity rules that don't match any available infrastructure."
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-affinity-mismatch-scenario-info
+  namespace: simulation-affinity-issues
+data:
+  description: |
+    Node Affinity Mismatch Scenario
+
+    This scenario simulates a situation where pods cannot be scheduled because they
+    have node affinity requirements that cannot be satisfied by any nodes in the cluster.
+    
+    The scenario creates:
+    1. A pod with unsatisfiable required node affinity
+    2. A deployment with unsatisfiable required node affinity
+    3. A deployment with satisfiable preferred node affinity (for comparison)
+    
+    Expected Symptoms:
+    - Pods with unsatisfiable affinity remain in Pending state
+    - Events showing "0/X nodes are available" with "node(s) didn't match node affinity"
+    - Deployment with unsatisfiable affinity shows 0 available replicas
+    - Service endpoint for unsatisfiable deployment remains empty
+    - Application health checks fail due to no running pods
+
+    Root Cause:
+    The pods have been configured with nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution
+    rules that specify node labels or values that don't exist in the cluster. This prevents
+    the Kubernetes scheduler from finding suitable nodes to place these pods.
+
+    This commonly occurs when:
+    - Using configuration from another environment with different node labels
+    - Specifying hardware requirements unavailable in the current cluster
+    - Incorrectly formatted label selectors
+    - Targeting zones or regions not available in the cluster
+
+    Resolution:
+    - Update node affinity rules to match available node labels
+    - Label nodes appropriately to match workload requirements
+    - Consider using preferredDuringSchedulingIgnoredDuringExecution instead of required
+    - Verify that your infrastructure has nodes matching your requirements
+    - Use nodeSelector for simpler use cases instead of complex affinity rules
+
+  investigation-symptoms: |
+    Application pods in namespace "simulation-affinity-issues" are stuck in Pending state
+    despite sufficient cluster resources. The service is unavailable and health checks 
+    are failing. Logs show the scheduler is unable to place the pods on any node. 

@@ -1,0 +1,255 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-cascade
+  labels:
+    scenario: etcd-cascade
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: etcd-load-generator
+  namespace: simulation-cascade
+  labels:
+    scenario: etcd-cascade
+spec:
+  template:
+    spec:
+      serviceAccountName: etcd-load-generator
+      containers:
+      - name: etcd-load-generator
+        image: bitnami/kubectl:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Starting etcd load generator job..."
+          # Create thousands of ConfigMaps to stress etcd
+          for i in $(seq 1 200); do
+            echo "Creating batch $i of ConfigMaps..."
+            for j in $(seq 1 50); do
+              kubectl create configmap "load-test-cm-$i-$j" -n simulation-cascade --from-literal=data="Load test data $i-$j for etcd stress testing. Adding more content to increase the size of this ConfigMap entry to ensure it takes up enough space in etcd storage. This is a simulation of a real-world etcd overload scenario that can affect API server performance and subsequently impact the scheduler's ability to place pods efficiently."
+            done
+            echo "Created 50 ConfigMaps in batch $i. Sleeping..."
+            sleep 2
+          done
+          
+          echo "Created 10,000 ConfigMaps. Now updating them repeatedly to generate writes..."
+          while true; do
+            RANDOM_BATCH=$((1 + RANDOM % 200))
+            RANDOM_CM=$((1 + RANDOM % 50))
+            TIMESTAMP=$(date +%s)
+            echo "Updating ConfigMap load-test-cm-$RANDOM_BATCH-$RANDOM_CM"
+            kubectl patch configmap "load-test-cm-$RANDOM_BATCH-$RANDOM_CM" -n simulation-cascade --type=merge -p "{\"data\":{\"updateTime\":\"$TIMESTAMP\"}}"
+            sleep 0.1
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: etcd-load-generator
+  namespace: simulation-cascade
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: configmap-manager
+  namespace: simulation-cascade
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: configmap-manager-binding
+  namespace: simulation-cascade
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: configmap-manager
+subjects:
+- kind: ServiceAccount
+  name: etcd-load-generator
+  namespace: simulation-cascade
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-app
+  namespace: simulation-cascade
+  labels:
+    app: vulnerable-app
+    scenario: etcd-cascade
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-app
+  template:
+    metadata:
+      labels:
+        app: vulnerable-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rapid-deployment-creator
+  namespace: simulation-cascade
+  labels:
+    scenario: etcd-cascade
+spec:
+  template:
+    spec:
+      serviceAccountName: deployment-creator
+      containers:
+      - name: deployment-creator
+        image: bitnami/kubectl:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Waiting for etcd to be under pressure..."
+          sleep 180
+          
+          echo "Starting deployment creation to test scheduler behavior..."
+          for i in $(seq 1 30); do
+            echo "Creating deployment batch $i..."
+            for j in $(seq 1 5); do
+              cat <<EOF | kubectl apply -f -
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: test-deployment-$i-$j
+                namespace: simulation-cascade
+                labels:
+                  app: test-app-$i-$j
+                  scenario: etcd-cascade
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels:
+                    app: test-app-$i-$j
+                template:
+                  metadata:
+                    labels:
+                      app: test-app-$i-$j
+                  spec:
+                    containers:
+                    - name: nginx
+                      image: nginx:1.21
+                      resources:
+                        requests:
+                          cpu: 10m
+                          memory: 32Mi
+                        limits:
+                          cpu: 20m
+                          memory: 64Mi
+              EOF
+            done
+            sleep 10
+            echo "Checking deployment status for batch $i..."
+            kubectl get deployments -n simulation-cascade | grep test-deployment-$i
+          done
+          
+          echo "All deployments created. Monitoring for scheduler latency..."
+          while true; do
+            kubectl get po -n simulation-cascade -o wide
+            kubectl get events -n simulation-cascade --sort-by='.lastTimestamp' | tail -10
+            sleep 20
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployment-creator
+  namespace: simulation-cascade
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-manager
+  namespace: simulation-cascade
+rules:
+- apiGroups: ["apps", "extensions"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "events"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployment-manager-binding
+  namespace: simulation-cascade
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployment-manager
+subjects:
+- kind: ServiceAccount
+  name: deployment-creator
+  namespace: simulation-cascade
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-cascade-scenario-info
+  namespace: simulation-cascade
+data:
+  description: |
+    Etcd → API Server → Scheduler Cascade Failure Scenario
+
+    This scenario simulates a cascading failure that starts with etcd performance issues,
+    which then impact the Kubernetes API server, and ultimately affect the scheduler's
+    ability to place pods efficiently.
+
+    The process:
+    1. A job generates excessive load on etcd by creating and updating thousands of ConfigMaps
+    2. The heavy etcd write load causes etcd to experience high latency
+    3. The API server, which depends on etcd, starts experiencing increased latency for requests
+    4. The scheduler, which interacts with the API server, becomes less responsive
+    5. New pods take longer to be scheduled, and deployments take longer to become ready
+
+    Expected Symptoms:
+    - High latency for API server operations
+    - Slow pod scheduling (pods stuck in Pending state longer than usual)
+    - Delayed deployment rollouts
+    - Increased etcd resource utilization (CPU, memory, disk I/O)
+    - Elevated API server latency metrics
+    - Error rates may increase across the cluster
+
+    Root Cause:
+    The root cause is high load on etcd, which propagates to affect other control plane components.
+    Etcd is the foundational datastore for Kubernetes, and when it experiences performance issues,
+    these cascade through the control plane components that depend on it.
+
+    Resolution:
+    - Scale etcd horizontally if possible
+    - Increase etcd resource allocations
+    - Implement etcd defragmentation
+    - Optimize etcd compaction settings
+    - Increase API server resources
+    - Consider API priority and fairness settings
+    - Implement proper resource quotas to prevent etcd overload
+  
+  investigation-symptoms: |
+    New deployments in the 'simulation-cascade' namespace are taking an unusually long time to 
+    become ready. Pods stay in Pending state for extended periods. The API server seems to be
+    responding slowly to all requests, and cluster operations like creating new resources are
+    experiencing high latency. Control plane components show increased CPU usage. 

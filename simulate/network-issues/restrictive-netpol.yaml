@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-network-issues
+  labels:
+    scenario: network-policy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-app
+  namespace: simulation-network-issues
+  labels:
+    app: frontend
+    scenario: network-policy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: simulation-network-issues
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: simulation-network-issues
+  labels:
+    app: backend
+    scenario: network-policy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: api
+    spec:
+      containers:
+      - name: httpbin
+        image: kennethreitz/httpbin
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: simulation-network-issues
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrictive-policy
+  namespace: simulation-network-issues
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          # Deliberately using a label that doesn't exist on the frontend
+          # The frontend has tier: web but this policy expects tier: frontend
+          tier: web
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 53 # Allow DNS resolution
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: connectivity-test
+  namespace: simulation-network-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: connectivity-checker
+        image: curlimages/curl
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Testing connectivity to backend-service..."
+          for i in $(seq 1 10); do
+            echo "Attempt $i:"
+            curl -v --max-time 5 backend-service.simulation-network-issues.svc.cluster.local:80/status/200 || echo "Connection failed!"
+            sleep 5
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: network-policy-scenario-info
+  namespace: simulation-network-issues
+data:
+  description: |
+    Network Policy Blockage Scenario
+
+    This scenario creates a frontend and backend service, with a network policy
+    that is misconfigured and blocks legitimate traffic. The policy expects pods
+    with label 'tier: frontend' to access the backend, but our frontend pods have
+    'tier: web' labels.
+
+    Expected Symptoms:
+    - Frontend pods unable to communicate with backend services
+    - Connection timeouts or refused connections
+    - Network connectivity issues between specific services
+    - Some pods can communicate while others can't based on labels
+
+    Root Cause:
+    The NetworkPolicy is overly restrictive or misconfigured. It uses incorrect
+    label selectors that don't match the actual pod labels, causing legitimate
+    traffic to be blocked.
+
+    Resolution:
+    Update the NetworkPolicy to use correct pod selectors that match the actual
+    pod labels. For this scenario, change 'tier: frontend' to 'tier: web' in the
+    ingress rules.
+  
+  investigation-symptoms: |
+    The frontend application in namespace 'simulation-network-issues' can't connect to the 
+    backend-service. Connection attempts are timing out or being refused. Other services 
+    outside this namespace can reach the backend without issues. 

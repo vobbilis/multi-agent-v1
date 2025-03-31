@@ -1,0 +1,238 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-endpoint-issues
+  labels:
+    scenario: endpoint-selector-mismatch
+---
+# First deployment with label "app=backend-correct"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-pods
+  namespace: simulation-endpoint-issues
+  labels:
+    app: backend-correct
+    scenario: endpoint-selector-mismatch
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend-correct
+  template:
+    metadata:
+      labels:
+        app: backend-correct  # This label is used by the working service
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+---
+# Service that correctly selects the backend pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service-working
+  namespace: simulation-endpoint-issues
+  labels:
+    scenario: endpoint-selector-mismatch
+spec:
+  selector:
+    app: backend-correct  # This matches the pod labels
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Service with mismatched selector that won't find any pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service-broken
+  namespace: simulation-endpoint-issues
+  labels:
+    scenario: endpoint-selector-mismatch
+spec:
+  selector:
+    app: backend-wrong  # This doesn't match any pod labels
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Frontend deployment that tries to connect to both services
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: simulation-endpoint-issues
+  labels:
+    app: frontend
+    scenario: endpoint-selector-mismatch
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: web
+        image: curlimages/curl:7.83.1
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Infinite loop to test connectivity to both services
+          while true; do
+            echo "$(date) - Testing connectivity to working service..."
+            if curl -s --max-time 5 backend-service-working:80 > /dev/null; then
+              echo "✅ Successfully connected to backend-service-working"
+            else
+              echo "❌ Failed to connect to backend-service-working"
+            fi
+            
+            echo "$(date) - Testing connectivity to broken service..."
+            if curl -s --max-time 5 backend-service-broken:80 > /dev/null; then
+              echo "✅ Successfully connected to backend-service-broken"
+            else
+              echo "❌ Failed to connect to backend-service-broken (expected failure)"
+            fi
+            
+            echo "--- Service endpoints ---"
+            echo "backend-service-working endpoints:"
+            getent hosts backend-service-working || echo "No endpoints found"
+            
+            echo "backend-service-broken endpoints:"
+            getent hosts backend-service-broken || echo "No endpoints found"
+            
+            echo "Sleeping for 30 seconds..."
+            sleep 30
+          done
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+---
+# Job to diagnose the service selector issue
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: service-diagnosis
+  namespace: simulation-endpoint-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: diagnosis
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for deployments to be ready
+          echo "Waiting for deployments to be processed..."
+          sleep 30
+          
+          echo "=== Deployments Status ==="
+          kubectl get deployments -n simulation-endpoint-issues
+          
+          echo -e "\n=== Pods Status ==="
+          kubectl get pods -n simulation-endpoint-issues -o wide
+          
+          echo -e "\n=== Pod Labels ==="
+          for pod in $(kubectl get pods -n simulation-endpoint-issues -l app=backend-correct -o name); do
+            echo "$pod labels:"
+            kubectl get $pod -n simulation-endpoint-issues --show-labels
+          done
+          
+          echo -e "\n=== Services Status ==="
+          kubectl get services -n simulation-endpoint-issues
+          
+          echo -e "\n=== Service Details ==="
+          echo "Working Service (should have endpoints):"
+          kubectl describe service backend-service-working -n simulation-endpoint-issues
+          
+          echo -e "\nBroken Service (should have NO endpoints):"
+          kubectl describe service backend-service-broken -n simulation-endpoint-issues
+          
+          echo -e "\n=== Endpoints Status ==="
+          kubectl get endpoints -n simulation-endpoint-issues
+          
+          echo -e "\n=== Endpoint Details ==="
+          echo "Working Service Endpoints:"
+          kubectl describe endpoints backend-service-working -n simulation-endpoint-issues
+          
+          echo -e "\nBroken Service Endpoints:"
+          kubectl describe endpoints backend-service-broken -n simulation-endpoint-issues
+          
+          echo -e "\n=== Events ==="
+          kubectl get events -n simulation-endpoint-issues --sort-by=.metadata.creationTimestamp | tail -n 20
+          
+          echo -e "\nExplanation:"
+          echo "The 'backend-service-broken' service has a selector 'app=backend-wrong' which doesn't match"
+          echo "any pod labels in the cluster. The pods have label 'app=backend-correct'. This causes the service"
+          echo "to have zero endpoints, leading to connection failures from the frontend pods."
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: endpoint-selector-mismatch-scenario-info
+  namespace: simulation-endpoint-issues
+data:
+  description: |
+    Service Endpoint Selector Mismatch Scenario
+
+    This scenario simulates a common networking issue where a Kubernetes Service
+    has a selector that doesn't match any pod labels, resulting in the service
+    having zero endpoints and being unable to route traffic to any pods.
+    
+    The scenario creates:
+    1. A deployment of backend pods with label "app=backend-correct"
+    2. A working service that correctly selects these pods
+    3. A broken service with selector "app=backend-wrong" that doesn't match any pods
+    4. A frontend deployment that attempts to connect to both services
+    
+    Expected Symptoms:
+    - The broken service shows zero endpoints
+    - Frontend pods fail to connect to the broken service
+    - DNS resolution for broken service succeeds, but connections timeout
+    - Application logs show connection failures to the broken service
+    - The working service functions normally for comparison
+
+    Root Cause:
+    The service selector in "backend-service-broken" doesn't match any pod labels,
+    resulting in zero endpoints. Kubernetes Services route traffic based on label selectors,
+    and when no pods match the selector, the service cannot forward traffic.
+
+    This commonly occurs when:
+    - Labels are misspelled or misconfigured
+    - Configuration is copied between environments without updating selectors
+    - Pods are updated with new labels but services aren't updated
+    - Different teams manage services and deployments with poor coordination
+
+    Resolution:
+    - Update the service selector to match the actual pod labels
+    - Or update the pod labels to match the service selector
+    - Implement CI/CD validation to ensure services and pods use consistent labels
+    - Use Kubernetes network policies to validate expected traffic patterns
+    - Consider service meshes for more advanced traffic management and validation
+
+  investigation-symptoms: |
+    Applications in namespace "simulation-endpoint-issues" are reporting connection failures 
+    when trying to reach the "backend-service-broken" service. Connections timeout but DNS 
+    resolution appears to work. The application functions correctly when using the 
+    "backend-service-working" service. 

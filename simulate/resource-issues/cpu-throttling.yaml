@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-throttle
+  namespace: simulation-resource-issues
+  labels:
+    app: cpu-throttle
+    scenario: cpu-throttling
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cpu-throttle
+  template:
+    metadata:
+      labels:
+        app: cpu-throttle
+    spec:
+      containers:
+      - name: cpu-consumer
+        image: polinux/stress
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+          limits:
+            cpu: "100m" # Very restrictive CPU limit
+            memory: "200Mi"
+        command: ["stress"]
+        args:
+        - "--cpu"
+        - "2"
+        - "--timeout"
+        - "600s"
+        - "--verbose"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-throttle-service
+  namespace: simulation-resource-issues
+spec:
+  selector:
+    app: cpu-throttle
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: request-generator
+  namespace: simulation-resource-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: load-generator
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting load test against cpu-throttle-service..."
+          while true; do
+            for i in $(seq 1 100); do
+              wget -q -O- --timeout=2 http://cpu-throttle-service.simulation-resource-issues.svc.cluster.local:80 || echo "Request failed or timed out"
+              sleep 0.05
+            done
+            echo "Completed 100 requests"
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cpu-throttling-scenario-info
+  namespace: simulation-resource-issues
+data:
+  description: |
+    CPU Throttling Scenario
+
+    This scenario deploys a service with very low CPU limits (100m) while running CPU-intensive
+    workloads. The stress tool will attempt to use more CPU than allowed, causing the container
+    to be throttled by Kubernetes.
+
+    A load generator job sends continuous requests to the service, which will experience high 
+    latency due to CPU throttling. Symptoms include slow response times and decreased throughput.
+
+    Expected Symptoms:
+    - High CPU throttling metrics in the pod's cAdvisor stats
+    - Increased latency for requests to the service
+    - kube-state-metrics showing high CPU throttling percentages
+    - Service performing slower than expected
+
+    Root Cause:
+    The application requires more CPU resources than allocated in the pod specification.
+    The CPU limit (100m) is too restrictive for the application's workload.
+
+    Resolution:
+    Increase the CPU limits to better accommodate the application's requirements or
+    optimize the application to be less CPU-intensive.
+  
+  investigation-symptoms: |
+    The application backed by service 'cpu-throttle-service' in namespace 'simulation-resource-issues'
+    is responding very slowly to requests. Users are complaining about high latency.
+    The application seems to be CPU-bound. 

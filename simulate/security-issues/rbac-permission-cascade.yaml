@@ -1,0 +1,429 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-rbac-issues
+  labels:
+    scenario: rbac-permission-cascade
+---
+# Service account with incomplete permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: incomplete-permissions-sa
+  namespace: simulation-rbac-issues
+---
+# Role with primary permissions but missing secondary permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: incomplete-permissions
+  namespace: simulation-rbac-issues
+rules:
+# Primary permissions - these are granted
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Missing secondary permissions - not granted
+# - apiGroups: [""]
+#   resources: ["pods", "configmaps", "secrets"]
+#   verbs: ["get", "list", "watch", "create", "delete"]
+---
+# Role binding for the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: incomplete-permissions-binding
+  namespace: simulation-rbac-issues
+subjects:
+- kind: ServiceAccount
+  name: incomplete-permissions-sa
+  namespace: simulation-rbac-issues
+roleRef:
+  kind: Role
+  name: incomplete-permissions
+  apiGroup: rbac.authorization.k8s.io
+---
+# Service account with complete permissions (for comparison)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: complete-permissions-sa
+  namespace: simulation-rbac-issues
+---
+# Role with complete permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: complete-permissions
+  namespace: simulation-rbac-issues
+rules:
+# Primary permissions
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Secondary permissions
+- apiGroups: [""]
+  resources: ["pods", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+---
+# Role binding for the complete service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: complete-permissions-binding
+  namespace: simulation-rbac-issues
+subjects:
+- kind: ServiceAccount
+  name: complete-permissions-sa
+  namespace: simulation-rbac-issues
+roleRef:
+  kind: Role
+  name: complete-permissions
+  apiGroup: rbac.authorization.k8s.io
+---
+# Deployment that references a ConfigMap and Secret
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rbac-test-app
+  namespace: simulation-rbac-issues
+  labels:
+    app: rbac-test
+    scenario: rbac-permission-cascade
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rbac-test
+  template:
+    metadata:
+      labels:
+        app: rbac-test
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        env:
+        - name: CONFIG_VALUE
+          valueFrom:
+            configMapKeyRef:
+              name: rbac-test-config
+              key: config-value
+        - name: SECRET_VALUE
+          valueFrom:
+            secretKeyRef:
+              name: rbac-test-secret
+              key: secret-value
+---
+# Job with incomplete permissions that will fail
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: incomplete-permissions-job
+  namespace: simulation-rbac-issues
+  labels:
+    scenario: rbac-permission-cascade
+spec:
+  template:
+    spec:
+      serviceAccountName: incomplete-permissions-sa
+      containers:
+      - name: deployment-manager
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Starting job with incomplete permissions..."
+          echo "This job will attempt to create resources for a deployment,"
+          echo "but lacks permissions for ConfigMaps and Secrets."
+          
+          echo "Checking permissions:"
+          echo "Deployment permissions:"
+          kubectl auth can-i get deployments --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create deployments --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          
+          echo "ConfigMap permissions:"
+          kubectl auth can-i get configmaps --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create configmaps --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          
+          echo "Secret permissions:"
+          kubectl auth can-i get secrets --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create secrets --as=system:serviceaccount:simulation-rbac-issues:incomplete-permissions-sa -n simulation-rbac-issues
+          
+          echo "Creating deployment:"
+          kubectl apply -f /var/run/rbac-test-app-deployment.yaml && echo "Deployment created successfully" || echo "Failed to create deployment"
+          
+          echo "Creating ConfigMap (should fail):"
+          kubectl create configmap rbac-test-config --from-literal=config-value="test config" -n simulation-rbac-issues && echo "ConfigMap created successfully" || echo "Failed to create ConfigMap"
+          
+          echo "Creating Secret (should fail):"
+          kubectl create secret generic rbac-test-secret --from-literal=secret-value="test secret" -n simulation-rbac-issues && echo "Secret created successfully" || echo "Failed to create Secret"
+          
+          echo "Checking status of created resources:"
+          echo "Deployments:"
+          kubectl get deployments -n simulation-rbac-issues || echo "Cannot list deployments"
+          
+          echo "ConfigMaps:"
+          kubectl get configmap rbac-test-config -n simulation-rbac-issues || echo "Cannot get ConfigMap"
+          
+          echo "Secrets:"
+          kubectl get secret rbac-test-secret -n simulation-rbac-issues || echo "Cannot get Secret"
+          
+          echo "Pods (from Deployment):"
+          kubectl get pods -l app=rbac-test -n simulation-rbac-issues || echo "Cannot list pods"
+          
+          echo "Job completed - RBAC cascade demonstrated"
+        volumeMounts:
+        - name: deployment-yaml
+          mountPath: /var/run
+      volumes:
+      - name: deployment-yaml
+        configMap:
+          name: rbac-test-app-deployment
+      restartPolicy: Never
+  backoffLimit: 0
+---
+# Job with complete permissions that will succeed
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: complete-permissions-job
+  namespace: simulation-rbac-issues
+  labels:
+    scenario: rbac-permission-cascade
+spec:
+  template:
+    spec:
+      serviceAccountName: complete-permissions-sa
+      containers:
+      - name: deployment-manager
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Starting job with complete permissions..."
+          echo "This job will create all resources for a deployment successfully."
+          
+          echo "Checking permissions:"
+          echo "Deployment permissions:"
+          kubectl auth can-i get deployments --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create deployments --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          
+          echo "ConfigMap permissions:"
+          kubectl auth can-i get configmaps --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create configmaps --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          
+          echo "Secret permissions:"
+          kubectl auth can-i get secrets --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          kubectl auth can-i create secrets --as=system:serviceaccount:simulation-rbac-issues:complete-permissions-sa -n simulation-rbac-issues
+          
+          echo "Creating deployment:"
+          kubectl apply -f /var/run/rbac-test-app-deployment.yaml && echo "Deployment created successfully" || echo "Failed to create deployment"
+          
+          echo "Creating ConfigMap:"
+          kubectl create configmap rbac-test-config --from-literal=config-value="test config" -n simulation-rbac-issues && echo "ConfigMap created successfully" || echo "Failed to create ConfigMap"
+          
+          echo "Creating Secret:"
+          kubectl create secret generic rbac-test-secret --from-literal=secret-value="test secret" -n simulation-rbac-issues && echo "Secret created successfully" || echo "Failed to create Secret"
+          
+          echo "Checking status of created resources:"
+          echo "Deployments:"
+          kubectl get deployments -n simulation-rbac-issues || echo "Cannot list deployments"
+          
+          echo "ConfigMaps:"
+          kubectl get configmap rbac-test-config -n simulation-rbac-issues || echo "Cannot get ConfigMap"
+          
+          echo "Secrets:"
+          kubectl get secret rbac-test-secret -n simulation-rbac-issues || echo "Cannot get Secret"
+          
+          echo "Pods (from Deployment):"
+          kubectl get pods -l app=rbac-test -n simulation-rbac-issues || echo "Cannot list pods"
+          
+          echo "Job completed - Successful deployment with complete permissions"
+        volumeMounts:
+        - name: deployment-yaml
+          mountPath: /var/run
+      volumes:
+      - name: deployment-yaml
+        configMap:
+          name: rbac-test-app-deployment
+      restartPolicy: Never
+  backoffLimit: 0
+---
+# ConfigMap containing deployment YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rbac-test-app-deployment
+  namespace: simulation-rbac-issues
+data:
+  rbac-test-app-deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rbac-test-app
+      namespace: simulation-rbac-issues
+      labels:
+        app: rbac-test
+        scenario: rbac-permission-cascade
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: rbac-test
+      template:
+        metadata:
+          labels:
+            app: rbac-test
+        spec:
+          containers:
+          - name: app
+            image: nginx:1.21
+            ports:
+            - containerPort: 80
+            env:
+            - name: CONFIG_VALUE
+              valueFrom:
+                configMapKeyRef:
+                  name: rbac-test-config
+                  key: config-value
+            - name: SECRET_VALUE
+              valueFrom:
+                secretKeyRef:
+                  name: rbac-test-secret
+                  key: secret-value
+---
+# Job to diagnose the RBAC permission issues
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rbac-diagnosis
+  namespace: simulation-rbac-issues
+spec:
+  template:
+    spec:
+      serviceAccountName: complete-permissions-sa
+      containers:
+      - name: diagnosis
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for the jobs to complete
+          echo "Waiting for scenario to initialize..."
+          sleep 60
+          
+          echo "=== ServiceAccounts ==="
+          kubectl get serviceaccounts -n simulation-rbac-issues
+          
+          echo -e "\n=== Roles ==="
+          kubectl get roles -n simulation-rbac-issues
+          
+          echo -e "\nIncomplete Permissions Role Details:"
+          kubectl get role incomplete-permissions -n simulation-rbac-issues -o yaml
+          
+          echo -e "\n=== Jobs Status ==="
+          kubectl get jobs -n simulation-rbac-issues
+          
+          echo -e "\n=== Job Pods Status ==="
+          kubectl get pods -n simulation-rbac-issues -l job-name
+          
+          echo -e "\n=== Incomplete Permissions Job Logs ==="
+          INCOMPLETE_POD=$(kubectl get pods -n simulation-rbac-issues -l job-name=incomplete-permissions-job -o name | head -n 1)
+          if [ ! -z "$INCOMPLETE_POD" ]; then
+            kubectl logs $INCOMPLETE_POD -n simulation-rbac-issues
+          else
+            echo "No incomplete permissions job pod found"
+          fi
+          
+          echo -e "\n=== Complete Permissions Job Logs ==="
+          COMPLETE_POD=$(kubectl get pods -n simulation-rbac-issues -l job-name=complete-permissions-job -o name | head -n 1)
+          if [ ! -z "$COMPLETE_POD" ]; then
+            kubectl logs $COMPLETE_POD -n simulation-rbac-issues
+          else
+            echo "No complete permissions job pod found"
+          fi
+          
+          echo -e "\n=== Deployments Status ==="
+          kubectl get deployments -n simulation-rbac-issues
+          
+          echo -e "\n=== Deployment Pods Status ==="
+          kubectl get pods -n simulation-rbac-issues -l app=rbac-test
+          
+          echo -e "\n=== ConfigMaps ==="
+          kubectl get configmaps -n simulation-rbac-issues
+          
+          echo -e "\n=== Secrets ==="
+          kubectl get secrets -n simulation-rbac-issues | grep -v default-token
+          
+          echo -e "\n=== Events ==="
+          kubectl get events -n simulation-rbac-issues --sort-by=.metadata.creationTimestamp | tail -n 20
+          
+          echo -e "\nExplanation:"
+          echo "This scenario demonstrates an RBAC Permission Cascade failure."
+          echo "The 'incomplete-permissions-sa' ServiceAccount has permission to create"
+          echo "Deployments, but it lacks permissions for the dependent resources that the"
+          echo "Deployment needs (ConfigMaps and Secrets)."
+          echo ""
+          echo "As a result, the operation partially succeeds (Deployment creation) but"
+          echo "then fails on dependent operations, leaving the system in an inconsistent state."
+          echo "The Deployment exists but cannot run properly due to missing ConfigMap/Secret."
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rbac-permission-cascade-scenario-info
+  namespace: simulation-rbac-issues
+data:
+  description: |
+    RBAC Permission Cascade Scenario
+
+    This scenario simulates a common security issue where a service account has
+    permissions for a primary operation (creating a Deployment) but lacks permissions
+    for dependent operations (creating ConfigMaps and Secrets that the Deployment 
+    requires). This results in a partially successful operation that ultimately fails.
+    
+    The scenario creates:
+    1. ServiceAccount with incomplete permissions (only for Deployments)
+    2. ServiceAccount with complete permissions (for comparison)
+    3. Jobs using each ServiceAccount that attempt to create a Deployment
+       which depends on ConfigMaps and Secrets
+    
+    Expected Symptoms:
+    - Deployment creation succeeds initially
+    - Subsequent operations to create ConfigMaps/Secrets fail with "Forbidden" errors
+    - The Deployment exists but pods remain in a pending state or crash looping
+    - Events show "Forbidden" errors for secondary resources
+    - Partial resource creation leads to an inconsistent state
+    - The complete permissions job succeeds for comparison
+
+    Root Cause:
+    The service account has been granted permissions for a high-level operation
+    (creating Deployments) but not for the dependent resources that operation requires
+    (ConfigMaps, Secrets, Pods). This incomplete permission setup creates a cascade
+    of failures after the initial operation succeeds.
+
+    This commonly occurs when:
+    - Security policies follow organizational boundaries but operations cross them
+    - RBAC permissions are defined without understanding all dependent operations
+    - Permissions are copied from environments with different security models
+    - Service accounts are not tested with end-to-end operations before deployment
+    - Dependencies between resources aren't mapped during security review
+
+    Resolution:
+    - Grant complete permissions for all resources in the operation chain
+    - Use Role aggregation to ensure consistency across related operations
+    - Test service accounts with complete operational workflows
+    - Document and review resource dependencies when defining RBAC rules
+    - Implement least-privilege access while ensuring operational completeness
+    - Consider using Kubernetes admission controllers to validate security models
+
+  investigation-symptoms: |
+    An application deployment partially succeeded in namespace "simulation-rbac-issues"
+    but is reporting permission errors. The Deployment exists but dependent resources
+    failed to create, resulting in an application that cannot start properly. Errors
+    in logs show "Forbidden" messages when trying to create ConfigMaps and Secrets. 

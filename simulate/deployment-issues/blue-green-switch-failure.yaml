@@ -1,0 +1,381 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-bluegreen-issues
+  labels:
+    scenario: blue-green-switch-failure
+---
+# Blue deployment (original version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+  namespace: simulation-bluegreen-issues
+  labels:
+    app: bluegreen-app
+    version: blue
+    scenario: blue-green-switch-failure
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bluegreen-app
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: bluegreen-app
+        version: blue
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: content
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: content
+        configMap:
+          name: blue-content
+---
+# Green deployment (new version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-green
+  namespace: simulation-bluegreen-issues
+  labels:
+    app: bluegreen-app
+    version: green
+    scenario: blue-green-switch-failure
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bluegreen-app
+      version: green
+  template:
+    metadata:
+      labels:
+        app: bluegreen-app
+        version: green
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: content
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: content
+        configMap:
+          name: green-content
+---
+# Service pointing to the Blue deployment (selector should later be switched to Green)
+apiVersion: v1
+kind: Service
+metadata:
+  name: bluegreen-service
+  namespace: simulation-bluegreen-issues
+  labels:
+    app: bluegreen-app
+    scenario: blue-green-switch-failure
+spec:
+  selector:
+    app: bluegreen-app
+    version: blue  # This should be switched to 'green' but will be forgotten
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Blue content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blue-content
+  namespace: simulation-bluegreen-issues
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Blue Version</title>
+      <style>
+        body {
+          background-color: #0000ff;
+          color: white;
+          font-family: Arial, sans-serif;
+          text-align: center;
+          padding-top: 100px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>BLUE VERSION</h1>
+      <p>This is version 1.0 of the application (Blue)</p>
+      <p>Deployed at: <span id="timestamp"></span></p>
+      <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+      </script>
+    </body>
+    </html>
+---
+# Green content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: green-content
+  namespace: simulation-bluegreen-issues
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Green Version</title>
+      <style>
+        body {
+          background-color: #00cc00;
+          color: white;
+          font-family: Arial, sans-serif;
+          text-align: center;
+          padding-top: 100px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>GREEN VERSION</h1>
+      <p>This is version 2.0 of the application (Green)</p>
+      <p>Deployed at: <span id="timestamp"></span></p>
+      <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+      </script>
+    </body>
+    </html>
+---
+# Client pod to test connectivity
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client-tester
+  namespace: simulation-bluegreen-issues
+  labels:
+    app: client-tester
+    scenario: blue-green-switch-failure
+spec:
+  containers:
+  - name: tester
+    image: curlimages/curl:7.83.1
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      # Continuously check which version we're getting
+      while true; do
+        echo "$(date) - Checking which version is being served..."
+        response=$(curl -s http://bluegreen-service)
+        
+        if echo "$response" | grep -q "BLUE VERSION"; then
+          echo "✅ Got BLUE version - as expected initially but incorrect after deployment"
+          echo "   Service selector is still pointing to blue deployment!"
+        elif echo "$response" | grep -q "GREEN VERSION"; then
+          echo "✅ Got GREEN version - correct after deployment switch"
+          echo "   Service selector successfully switched to green deployment."
+        else
+          echo "❌ Got unexpected response"
+        fi
+        
+        echo "---"
+        sleep 10
+      done
+---
+# Job to simulate blue/green deployment execution but failing to switch service
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: blue-green-deploy-job
+  namespace: simulation-bluegreen-issues
+  labels:
+    scenario: blue-green-switch-failure
+spec:
+  template:
+    spec:
+      containers:
+      - name: deployer
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=== Blue/Green Deployment Process ==="
+          
+          echo "Step 1: Verify Blue deployment is running (current version)"
+          kubectl get deployment app-blue -n simulation-bluegreen-issues
+          kubectl get pods -l version=blue -n simulation-bluegreen-issues
+          
+          echo "Step 2: Verify service is pointing to Blue deployment"
+          kubectl get service bluegreen-service -n simulation-bluegreen-issues -o yaml | grep -A5 selector
+          
+          echo "Step 3: Deploy the Green version (new version)"
+          # Green deployment is already defined in the YAML
+          kubectl get deployment app-green -n simulation-bluegreen-issues || echo "Green deployment not found, would create it here"
+          
+          echo "Step 4: Wait for Green deployment to be fully ready"
+          kubectl rollout status deployment/app-green -n simulation-bluegreen-issues -w --timeout=90s
+          
+          echo "Step 5: Verify Green deployment pods are running"
+          kubectl get pods -l version=green -n simulation-bluegreen-issues
+          
+          echo "!!! Step 6 (MISSED STEP): Switch service selector from Blue to Green !!!"
+          echo "This critical step would update the service selector to point to the green deployment"
+          echo "In a real deployment process, we would execute:"
+          echo "kubectl patch service bluegreen-service -n simulation-bluegreen-issues -p '{\"spec\":{\"selector\":{\"version\":\"green\"}}}'"
+          echo "But this step is intentionally skipped to simulate a deployment error"
+          
+          echo "Step 7: Validate deployment (but this will fail because service wasn't switched)"
+          echo "At this point, traffic would still go to the Blue deployment despite Green being ready"
+          echo "This is a common issue in blue/green deployments when the service switch is forgotten"
+          
+          echo "The scenario will continue to demonstrate that traffic still goes to the Blue version"
+          echo "despite the Green version being fully deployed and ready"
+          
+          echo "=== Current state of resources ==="
+          echo "Deployments:"
+          kubectl get deployments -n simulation-bluegreen-issues
+          
+          echo "Pods:"
+          kubectl get pods -n simulation-bluegreen-issues
+          
+          echo "Service selector (still pointing to blue!):"
+          kubectl get service bluegreen-service -n simulation-bluegreen-issues -o yaml | grep -A5 selector
+          
+          echo "=== End of deployment process ==="
+          echo "Result: FAILURE - Service still routes to old (blue) version"
+      restartPolicy: OnFailure
+---
+# Job to diagnose the blue/green deployment issue
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: blue-green-diagnosis
+  namespace: simulation-bluegreen-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: diagnosis
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for the blue-green deployment job to complete
+          echo "Waiting for deployment scenario to initialize..."
+          sleep 60
+          
+          echo "=== Deployments Status ==="
+          kubectl get deployments -n simulation-bluegreen-issues
+          
+          echo -e "\n=== Pod Status ==="
+          echo "Blue pods:"
+          kubectl get pods -l version=blue -n simulation-bluegreen-issues
+          
+          echo -e "\nGreen pods:"
+          kubectl get pods -l version=green -n simulation-bluegreen-issues
+          
+          echo -e "\n=== Service Details ==="
+          kubectl get service bluegreen-service -n simulation-bluegreen-issues -o yaml
+          
+          echo -e "\n=== Service Endpoints ==="
+          kubectl get endpoints bluegreen-service -n simulation-bluegreen-issues -o yaml
+          
+          echo -e "\n=== Testing Service Connectivity ==="
+          echo "Client tester logs (showing which version it's receiving):"
+          kubectl logs client-tester -n simulation-bluegreen-issues --tail=10
+          
+          echo -e "\n=== Deployment Job Logs ==="
+          DEPLOY_POD=$(kubectl get pods -n simulation-bluegreen-issues -l job-name=blue-green-deploy-job -o name | head -n 1)
+          if [ ! -z "$DEPLOY_POD" ]; then
+            kubectl logs $DEPLOY_POD -n simulation-bluegreen-issues | grep -A20 "Step 6"
+          else
+            echo "No deployment job pod found"
+          fi
+          
+          echo -e "\n=== Events ==="
+          kubectl get events -n simulation-bluegreen-issues --sort-by=.metadata.creationTimestamp | tail -n 10
+          
+          echo -e "\nExplanation:"
+          echo "This scenario demonstrates a Blue/Green deployment failure where the deployment"
+          echo "of the new version (Green) succeeded, but the service selector was not updated"
+          echo "to point to the new version. As a result, traffic continues to flow to the old"
+          echo "Blue version despite the new Green version being fully deployed and ready."
+          echo ""
+          echo "To fix this issue, the service selector needs to be updated to point to version=green:"
+          echo "kubectl patch service bluegreen-service -n simulation-bluegreen-issues -p '{\"spec\":{\"selector\":{\"version\":\"green\"}}}'"
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blue-green-switch-failure-scenario-info
+  namespace: simulation-bluegreen-issues
+data:
+  description: |
+    Blue/Green Deployment Service Switch Failure Scenario
+
+    This scenario simulates a common deployment issue where a blue/green deployment
+    is executed but the final step of switching the service to point to the new version
+    is forgotten or fails. As a result, traffic continues to flow to the old version
+    despite the new version being fully deployed and ready.
+    
+    The scenario creates:
+    1. A Blue deployment (original version)
+    2. A Green deployment (new version)
+    3. A service that points to the Blue deployment
+    4. A client pod that continuously tests which version is being served
+    5. A job that simulates the deployment process but "forgets" to switch the service
+    
+    Expected Symptoms:
+    - Both Blue and Green deployments show as running and ready
+    - Service selector still points to the Blue deployment
+    - Client traffic continues to be served by the old version
+    - No error messages in logs (making this issue harder to detect)
+    - Deployment is considered "complete" but new features aren't visible
+
+    Root Cause:
+    During the blue/green deployment process, the service selector was not updated to
+    point to the new version (Green). This is often a manual step in deployment
+    pipelines or scripts that can be forgotten, especially in complex deployment
+    processes that involve multiple steps and components.
+
+    This commonly occurs when:
+    - Deployment processes are manual or partially automated
+    - CI/CD pipelines lack validation steps for service routing
+    - Multiple teams are involved in the deployment process
+    - Documentation for deployment steps is incomplete
+    - Deployment fails partway through but appears successful
+
+    Resolution:
+    - Update the service selector to point to the Green deployment
+    - Implement automated verification of traffic routing as part of deployment
+    - Use a service mesh for more sophisticated traffic management
+    - Add post-deployment tests to verify correct version is being served
+    - Consider GitOps approaches where service and deployment configs are atomic
+
+  investigation-symptoms: |
+    A new application version was deployed to namespace "simulation-bluegreen-issues"
+    but users report they're still seeing the old version. Developers insist the new
+    version has been deployed successfully and all deployments show as running. 

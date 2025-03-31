@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-quota-issues
+  labels:
+    scenario: quota-exhaustion
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: restrictive-quota
+  namespace: simulation-quota-issues
+spec:
+  hard:
+    # Intentionally restrictive quota
+    requests.cpu: "500m"
+    requests.memory: "500Mi"
+    limits.cpu: "1000m"
+    limits.memory: "1Gi"
+    pods: "5"
+    services: "3"
+    persistentvolumeclaims: "2"
+    secrets: "5"
+    configmaps: "5"
+---
+# First deployment that will consume most of the quota
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-consumer-1
+  namespace: simulation-quota-issues
+  labels:
+    app: quota-consumer-1
+    scenario: quota-exhaustion
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: quota-consumer-1
+  template:
+    metadata:
+      labels:
+        app: quota-consumer-1
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 150m
+            memory: 150Mi
+          limits:
+            cpu: 300m
+            memory: 300Mi
+---
+# Service for the first deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: quota-consumer-1
+  namespace: simulation-quota-issues
+spec:
+  selector:
+    app: quota-consumer-1
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Second deployment that will exceed the quota when combined with the first
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-consumer-2
+  namespace: simulation-quota-issues
+  labels:
+    app: quota-consumer-2
+    scenario: quota-exhaustion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: quota-consumer-2
+  template:
+    metadata:
+      labels:
+        app: quota-consumer-2
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+---
+# Service for the second deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: quota-consumer-2
+  namespace: simulation-quota-issues
+spec:
+  selector:
+    app: quota-consumer-2
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Third deployment that will fail due to exceeded quota
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-consumer-3
+  namespace: simulation-quota-issues
+  labels:
+    app: quota-consumer-3
+    scenario: quota-exhaustion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: quota-consumer-3
+  template:
+    metadata:
+      labels:
+        app: quota-consumer-3
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        resources:
+          requests:
+            cpu: 150m
+            memory: 150Mi
+          limits:
+            cpu: 300m
+            memory: 300Mi
+---
+# Job to check quota and deployment status
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quota-status-checker
+  namespace: simulation-quota-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: checker
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for a bit to let resource quota controller do its work
+          echo "Waiting for deployments to be processed..."
+          sleep 30
+
+          echo "=== Resource Quota Status ==="
+          kubectl get resourcequota -n simulation-quota-issues -o wide
+          
+          echo -e "\nResource Quota Details:"
+          kubectl describe resourcequota restrictive-quota -n simulation-quota-issues
+          
+          echo -e "\n=== Deployment Status ==="
+          kubectl get deployments -n simulation-quota-issues
+          
+          echo -e "\nQuota Consumer 1 Details:"
+          kubectl describe deployment quota-consumer-1 -n simulation-quota-issues
+          
+          echo -e "\nQuota Consumer 2 Details:"
+          kubectl describe deployment quota-consumer-2 -n simulation-quota-issues
+          
+          echo -e "\nQuota Consumer 3 Details (Expected to fail due to quota):"
+          kubectl describe deployment quota-consumer-3 -n simulation-quota-issues
+          
+          echo -e "\n=== ReplicaSets Status ==="
+          kubectl get rs -n simulation-quota-issues
+          
+          echo -e "\n=== Pods Status ==="
+          kubectl get pods -n simulation-quota-issues
+          
+          echo -e "\n=== Recent Events ==="
+          kubectl get events -n simulation-quota-issues --sort-by=.metadata.creationTimestamp | tail -n 20
+          
+          echo -e "\nThe quota-consumer-3 deployment should be failing to create pods due to exceeded quota."
+          echo "This demonstrates how resource quotas can prevent new deployments from scaling properly when namespace resources are constrained."
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quota-exhaustion-scenario-info
+  namespace: simulation-quota-issues
+data:
+  description: |
+    Resource Quota Exhaustion Scenario
+
+    This scenario simulates a namespace with tight resource quotas that become exhausted,
+    preventing new deployments from scaling properly. It creates three deployments:
+    
+    1. quota-consumer-1: Uses 3 replicas (450m CPU, 450Mi memory)
+    2. quota-consumer-2: Uses 2 replicas (200m CPU, 200Mi memory)
+    3. quota-consumer-3: Attempts to use 2 replicas (300m CPU, 300Mi memory)
+    
+    Together, these deployments attempt to request more resources than the namespace quota allows
+    (500m CPU, 500Mi memory). The third deployment will fail to create pods
+    because the quota is already exhausted by the first two deployments.
+
+    Expected Symptoms:
+    - Third deployment stays at 0 replicas despite spec requesting 2
+    - Events showing failed pod creation due to quota exceeded
+    - ReplicaSet for third deployment unable to create pods
+    - ResourceQuota showing at or near 100% usage
+    - Application health checks failing due to missing pods
+
+    Root Cause:
+    The namespace has restrictive resource quotas that prevent scaling of new deployments
+    once existing workloads have consumed the available quota. This is often seen when
+    teams share a namespace with fixed resource allocation or when resource quotas are 
+    implemented to control costs but set too restrictively.
+
+    Resolution:
+    - Increase the resource quota for the namespace
+    - Optimize existing deployments to use fewer resources
+    - Move some workloads to a different namespace
+    - Implement priority classes to ensure critical workloads get resources
+    - Consider implementing cluster autoscaling if running in a cloud environment
+
+  investigation-symptoms: |
+    Deployment "quota-consumer-3" in namespace "simulation-quota-issues" is stuck at 0/2 
+    replicas and not creating any pods. The application is unavailable, and health checks 
+    are failing. Other deployments in the same namespace seem to be running normally. 

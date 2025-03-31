@@ -1,0 +1,280 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-storage-issues
+  labels:
+    scenario: pvc-binding-failure
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: unbound-pvc
+  namespace: simulation-storage-issues
+  labels:
+    scenario: pvc-binding-failure
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # Intentionally use a non-existent storage class to simulate binding failure
+  storageClassName: non-existent-storage-class
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valid-pvc
+  namespace: simulation-storage-issues
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # This should use the default storage class and bind successfully
+  storageClassName: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unbound-pvc-app
+  namespace: simulation-storage-issues
+  labels:
+    app: unbound-pvc-app
+    scenario: pvc-binding-failure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unbound-pvc-app
+  template:
+    metadata:
+      labels:
+        app: unbound-pvc-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        readinessProbe:
+          exec:
+            command:
+            - ls
+            - /data
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: unbound-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: working-pvc-app
+  namespace: simulation-storage-issues
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: working-pvc-app
+  template:
+    metadata:
+      labels:
+        app: working-pvc-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        readinessProbe:
+          exec:
+            command:
+            - ls
+            - /data
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: valid-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pvc-status-checker
+  namespace: simulation-storage-issues
+spec:
+  schedule: "*/2 * * * *"  # Every 2 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: status-checker
+            image: bitnami/kubectl:1.23
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              echo "=== PVC Status Check at $(date) ==="
+              echo "Checking PVC status in namespace simulation-storage-issues:"
+              kubectl get pvc -n simulation-storage-issues -o wide
+              
+              echo -e "\nDetailed status of 'unbound-pvc':"
+              kubectl describe pvc unbound-pvc -n simulation-storage-issues
+              
+              echo -e "\nDetailed status of 'valid-pvc':"
+              kubectl describe pvc valid-pvc -n simulation-storage-issues
+              
+              echo -e "\nChecking pod status affected by PVCs:"
+              kubectl get pods -n simulation-storage-issues -o wide
+              
+              echo -e "\nDetailed status of unbound-pvc-app pod:"
+              kubectl describe pod -l app=unbound-pvc-app -n simulation-storage-issues | grep -A10 "Events:"
+              
+              echo -e "\nChecking StorageClasses:"
+              kubectl get storageclass
+              
+              echo -e "\nChecking if 'non-existent-storage-class' exists (should fail):"
+              kubectl get storageclass non-existent-storage-class || echo "Storage class 'non-existent-storage-class' does not exist as expected"
+            
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: storage-info-generator
+  namespace: simulation-storage-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: info-generator
+        image: busybox:1.34
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /output
+          
+          cat > /output/storage-issues.txt << EOF
+          STORAGE ISSUE DETECTED:
+          
+          Pod "unbound-pvc-app" is stuck in Pending state because its PVC "unbound-pvc" cannot be bound.
+          
+          The PVC is using a non-existent storage class "non-existent-storage-class" which cannot
+          provide the requested storage. This is intentionally created to simulate real-world
+          scenarios where storage classes might be misconfigured or not available in all environments.
+          
+          To verify:
+            - Check pod status: kubectl get pods -n simulation-storage-issues
+            - Check PVC status: kubectl get pvc -n simulation-storage-issues
+            - Check storage class: kubectl get storageclass non-existent-storage-class
+            
+          Compare with the functional example "working-pvc-app" using the default storage class.
+          EOF
+          
+          echo "Created storage issue explainer at /output/storage-issues.txt"
+          echo "-------"
+          cat /output/storage-issues.txt
+          echo "-------"
+          
+          # Keep the container running for a while to allow for inspection
+          echo "Sleeping for demonstration purposes. You can exec into this pod to view files."
+          sleep 3600
+        volumeMounts:
+        - name: output-volume
+          mountPath: /output
+      volumes:
+      - name: output-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unbound-pvc-app
+  namespace: simulation-storage-issues
+spec:
+  selector:
+    app: unbound-pvc-app
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: working-pvc-app
+  namespace: simulation-storage-issues
+spec:
+  selector:
+    app: working-pvc-app
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pvc-binding-failure-scenario-info
+  namespace: simulation-storage-issues
+data:
+  description: |
+    PVC Binding Failure Scenario
+
+    This scenario simulates a storage provisioning failure where a PersistentVolumeClaim (PVC)
+    cannot be bound because it references a non-existent storage class. As a result, a pod
+    depending on this PVC remains in a Pending state indefinitely.
+
+    The scenario creates:
+    - An unbound PVC using a non-existent storage class
+    - A workload pod that depends on the unbound PVC (stuck in Pending)
+    - A working PVC using the default storage class (for comparison)
+    - A working pod that successfully mounts the valid PVC
+
+    Expected Symptoms:
+    - Pod "unbound-pvc-app" stuck in Pending state
+    - PVC "unbound-pvc" stuck in Pending state with no bound volume
+    - Events showing provisioning failures for the PVC
+    - Healthchecks failing for the affected service
+    - Working pod successfully running (for comparison)
+
+    Root Cause:
+    The PVC cannot be bound because it references a storage class "non-existent-storage-class"
+    that does not exist in the cluster. The storage provisioner cannot create a volume for
+    this PVC, causing the dependent pod to remain in Pending state.
+
+    Resolution:
+    - Create the missing storage class
+    - Or modify the PVC to use an existing storage class
+    - Ensure storage configuration is consistent across environments
+    - Implement validation for storage class references in CI/CD
+    - Add proper alerts for PVCs stuck in Pending state
+
+  investigation-symptoms: |
+    Application "unbound-pvc-app" in namespace "simulation-storage-issues" is not starting.
+    The pod is stuck in Pending state for an extended period. Initial checks show the pod
+    is waiting for a volume to be provisioned, but the process appears to be stalled.
+    Other applications in the same namespace with similar configurations are running normally. 

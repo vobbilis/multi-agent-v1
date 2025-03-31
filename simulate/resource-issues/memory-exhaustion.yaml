@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-resource-issues
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-hog
+  namespace: simulation-resource-issues
+  labels:
+    app: memory-hog
+    scenario: memory-exhaustion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memory-hog
+  template:
+    metadata:
+      labels:
+        app: memory-hog
+    spec:
+      containers:
+      - name: memory-consumer
+        image: polinux/stress
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "100m"
+          limits:
+            memory: "100Mi" # Deliberately low memory limit
+            cpu: "200m"
+        command: ["stress"]
+        args:
+        - "--vm"
+        - "1"
+        - "--vm-bytes"
+        - "150M" # Asking for more memory than limit
+        - "--vm-hang"
+        - "0"
+        - "--verbose"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memory-exhaustion-scenario-info
+  namespace: simulation-resource-issues
+data:
+  description: |
+    Memory Exhaustion Scenario
+
+    This scenario deploys a pod that intentionally consumes more memory than its specified limit.
+    The container is configured with a 100Mi memory limit but attempts to allocate 150Mi,
+    which will trigger OOM (Out of Memory) kills.
+
+    Expected Symptoms:
+    - Pod repeatedly crashing with OOMKilled status
+    - Container restarts incrementing
+    - Error messages in logs about memory exhaustion
+    - Pod status showing 'CrashLoopBackOff' eventually
+
+    Root Cause:
+    The application requires more memory than allocated in the pod specification.
+    The memory limit (100Mi) is insufficient for the application's actual memory needs (150Mi).
+
+    Resolution:
+    Increase the memory limit to accommodate the application's requirements or
+    optimize the application to use less memory.
+  
+  investigation-symptoms: |
+    My pod named 'memory-hog' in the 'simulation-resource-issues' namespace 
+    keeps restarting and shows CrashLoopBackOff status. The logs show it was 
+    killed due to memory issues. 

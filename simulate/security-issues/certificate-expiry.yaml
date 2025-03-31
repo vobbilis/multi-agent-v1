@@ -1,0 +1,367 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-security-issues
+  labels:
+    scenario: certificate-expiry
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certificate-creator
+  namespace: simulation-security-issues
+data:
+  create-certs.sh: |
+    #!/bin/bash
+    
+    # Create root CA key and certificate
+    openssl genrsa -out /certs/ca.key 2048
+    openssl req -x509 -new -nodes -key /certs/ca.key -sha256 -days 1 -out /certs/ca.crt \
+      -subj "/CN=Simulation CA/O=Security Scenario/OU=Cert Expiry Test"
+    
+    # Create server key
+    openssl genrsa -out /certs/server.key 2048
+    
+    # Create CSR config
+    cat > /certs/csr.conf <<EOF
+    [req]
+    req_extensions = v3_req
+    distinguished_name = req_distinguished_name
+    
+    [req_distinguished_name]
+    
+    [v3_req]
+    basicConstraints = CA:FALSE
+    keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+    extendedKeyUsage = serverAuth
+    subjectAltName = @alt_names
+    
+    [alt_names]
+    DNS.1 = secure-service
+    DNS.2 = secure-service.simulation-security-issues
+    DNS.3 = secure-service.simulation-security-issues.svc
+    DNS.4 = secure-service.simulation-security-issues.svc.cluster.local
+    EOF
+    
+    # Generate CSR
+    openssl req -new -key /certs/server.key -out /certs/server.csr \
+      -subj "/CN=secure-service.simulation-security-issues.svc/O=Security Test/OU=Expiry Scenario" \
+      -config /certs/csr.conf
+    
+    # Sign certificate with our CA - with only 1 hour validity
+    openssl x509 -req -in /certs/server.csr -CA /certs/ca.crt -CAkey /certs/ca.key \
+      -CAcreateserial -out /certs/server.crt -days 0 -hours 1 \
+      -extensions v3_req -extfile /certs/csr.conf
+    
+    # Output cert info
+    echo "Certificate details:"
+    openssl x509 -in /certs/server.crt -text -noout
+    
+    # Copy to the location expected by Nginx
+    cp /certs/server.crt /mounted-certs/tls.crt
+    cp /certs/server.key /mounted-certs/tls.key
+    cp /certs/ca.crt /mounted-certs/ca.crt
+    
+    echo "Certificates created and installed with short expiration time (1 hour)"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: certificate-generator
+  namespace: simulation-security-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: cert-generator
+        image: alpine:3.14
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          apk add --no-cache openssl bash
+          chmod +x /scripts/create-certs.sh
+          mkdir -p /certs
+          /scripts/create-certs.sh
+        volumeMounts:
+        - name: cert-scripts
+          mountPath: /scripts
+        - name: certs-output
+          mountPath: /certs
+        - name: mounted-certs
+          mountPath: /mounted-certs
+      restartPolicy: Never
+      volumes:
+      - name: cert-scripts
+        configMap:
+          name: certificate-creator
+          defaultMode: 0777
+      - name: certs-output
+        emptyDir: {}
+      - name: mounted-certs
+        secret:
+          secretName: secure-service-tls
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secure-service-tls
+  namespace: simulation-security-issues
+type: kubernetes.io/tls
+data:
+  tls.crt: ""  # Will be populated by the job
+  tls.key: ""  # Will be populated by the job
+  ca.crt: ""   # Will be populated by the job
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-service
+  namespace: simulation-security-issues
+  labels:
+    app: secure-service
+    scenario: certificate-expiry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secure-service
+  template:
+    metadata:
+      labels:
+        app: secure-service
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 443
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        - name: certs
+          mountPath: /etc/nginx/ssl
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: certs
+        secret:
+          secretName: secure-service-tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: simulation-security-issues
+data:
+  default.conf: |
+    server {
+        listen 443 ssl;
+        server_name secure-service.simulation-security-issues.svc.cluster.local;
+        
+        ssl_certificate /etc/nginx/ssl/tls.crt;
+        ssl_certificate_key /etc/nginx/ssl/tls.key;
+        
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_prefer_server_ciphers on;
+        
+        location / {
+            return 200 'Secure service is running!\n';
+            add_header Content-Type text/plain;
+        }
+        
+        location /health {
+            return 200 'Healthy\n';
+            add_header Content-Type text/plain;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secure-service
+  namespace: simulation-security-issues
+spec:
+  selector:
+    app: secure-service
+  ports:
+  - port: 443
+    targetPort: 443
+    name: https
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-app
+  namespace: simulation-security-issues
+  labels:
+    app: client-app
+    scenario: certificate-expiry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client-app
+  template:
+    metadata:
+      labels:
+        app: client-app
+    spec:
+      containers:
+      - name: client
+        image: curlimages/curl:7.80.0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Copy CA cert to the system cert store
+          cp /certs/ca.crt /usr/local/share/ca-certificates/simulation-ca.crt
+          update-ca-certificates
+          
+          # Start continuous health check
+          while true; do
+            echo "$(date) - Checking service health..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" https://secure-service.simulation-security-issues.svc.cluster.local/health --cacert /certs/ca.crt)
+            if [ "$response" = "200" ]; then
+              echo "$(date) - Connection successful (HTTP $response)"
+            else
+              echo "$(date) - CONNECTION FAILED (HTTP $response)"
+              # Try with --insecure to see if it's a certificate issue
+              insecure_response=$(curl -s -o /dev/null -w "%{http_code}" https://secure-service.simulation-security-issues.svc.cluster.local/health --insecure)
+              if [ "$insecure_response" = "200" ]; then
+                echo "$(date) - Insecure connection works (HTTP $insecure_response) - LIKELY CERTIFICATE ISSUE"
+                # Get more details about the certificate
+                echo "Certificate details:"
+                openssl s_client -connect secure-service.simulation-security-issues.svc.cluster.local:443 -showcerts </dev/null 2>/dev/null | openssl x509 -noout -dates
+              else
+                echo "$(date) - Even insecure connection failed (HTTP $insecure_response) - SERVICE ISSUE"
+              fi
+            fi
+            sleep 30
+          done
+        volumeMounts:
+        - name: certs
+          mountPath: /certs
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+      volumes:
+      - name: certs
+        secret:
+          secretName: secure-service-tls
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: certificate-checker
+  namespace: simulation-security-issues
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cert-checker
+            image: alpine:3.14
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              apk add --no-cache openssl
+              echo "Checking certificate expiry at $(date):"
+              
+              if [ -f /certs/tls.crt ]; then
+                expiry_date=$(openssl x509 -in /certs/tls.crt -noout -enddate | cut -d= -f2)
+                current_time=$(date +%s)
+                expiry_time=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$expiry_date" +%s 2>/dev/null)
+                
+                if [ -z "$expiry_time" ]; then
+                  # Try another format for Alpine/BusyBox date
+                  month=$(echo $expiry_date | awk '{print $1}')
+                  day=$(echo $expiry_date | awk '{print $2}')
+                  time=$(echo $expiry_date | awk '{print $3}')
+                  year=$(echo $expiry_date | awk '{print $4}')
+                  expiry_time=$(date -d "$month $day $time $year" +%s 2>/dev/null || date -j -f "%b %d %T %Y" "$month $day $time $year" +%s 2>/dev/null)
+                fi
+                
+                time_left=$((expiry_time - current_time))
+                days_left=$((time_left / 86400))
+                hours_left=$(((time_left % 86400) / 3600))
+                minutes_left=$(((time_left % 3600) / 60))
+                
+                echo "Certificate expires on: $expiry_date"
+                
+                if [ $time_left -lt 0 ]; then
+                  echo "CERTIFICATE HAS EXPIRED! ($((time_left * -1 / 60)) minutes ago)"
+                  echo "THIS IS THE SIMULATED SECURITY ISSUE"
+                else
+                  echo "Time until expiry: $days_left days, $hours_left hours, $minutes_left minutes"
+                fi
+                
+                echo "Certificate details:"
+                openssl x509 -in /certs/tls.crt -text -noout | grep -E 'Subject:|Issuer:|Not Before:|Not After :|DNS:'
+              else
+                echo "Certificate file not found at /certs/tls.crt"
+              fi
+            volumeMounts:
+            - name: certs
+              mountPath: /certs
+          restartPolicy: OnFailure
+          volumes:
+          - name: certs
+            secret:
+              secretName: secure-service-tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certificate-expiry-scenario-info
+  namespace: simulation-security-issues
+data:
+  description: |
+    Certificate Expiry Scenario
+
+    This scenario simulates a TLS certificate expiry situation where a service
+    is secured with a short-lived TLS certificate (1 hour validity). After the
+    certificate expires, connections to the service will fail with certificate
+    validation errors.
+
+    Expected Symptoms:
+    - Client connections to the secure service start failing with TLS errors
+    - Application logs show certificate validation failures
+    - Secure service remains running and healthy
+    - Insecure connections (bypassing certificate validation) still work
+    - Certificate checker jobs report expired certificate
+    - Failed ingress connections if exposed externally
+
+    Root Cause:
+    The TLS certificate used by the secure service has expired. While the service
+    itself is operational, clients properly validating the certificate will reject
+    connections as the certificate is no longer valid according to its expiration date.
+
+    Resolution:
+    - Renew/rotate the expired certificate
+    - Update the secret with the new certificate
+    - Configure automated certificate renewal
+    - Implement monitoring for certificate expiration dates
+    - Consider using cert-manager for automatic certificate management
+    - Ensure proper alerting for upcoming certificate expirations
+
+  investigation-symptoms: |
+    Applications are unable to connect to the secure-service in the simulation-security-issues
+    namespace. Connection attempts result in certificate validation errors. The service itself 
+    appears to be running based on pod status, but clients cannot establish secure connections.
+    Certificate inspection shows that expiration date has passed. 

@@ -1,0 +1,404 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-api-throttling
+  labels:
+    scenario: api-throttling
+---
+# ConfigMap with a simple load generation script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: load-generator-script
+  namespace: simulation-api-throttling
+data:
+  generate-load.sh: |
+    #!/bin/bash
+    
+    # This script creates a large number of API requests to trigger throttling
+    
+    echo "Starting API load generator..."
+    
+    # Function to make a batch of API requests
+    function make_requests() {
+      local batch_size=$1
+      echo "Making $batch_size API requests..."
+      
+      for i in $(seq 1 $batch_size); do
+        # Use kubectl to get resources (which hits the API server)
+        kubectl get pods -n simulation-api-throttling >/dev/null 2>&1 &
+        kubectl get configmaps -n simulation-api-throttling >/dev/null 2>&1 &
+        kubectl get secrets -n simulation-api-throttling >/dev/null 2>&1 &
+        kubectl get services -n simulation-api-throttling >/dev/null 2>&1 &
+        
+        # Throttle back slightly to avoid overwhelming local resources
+        if [ $((i % 10)) -eq 0 ]; then
+          sleep 0.01
+        fi
+      done
+      
+      # Wait for all background processes to complete
+      wait
+    }
+    
+    # Function to track 429 responses
+    function track_throttling() {
+      echo "Monitoring for 429 Too Many Requests responses..."
+      
+      local total_requests=0
+      local throttled_requests=0
+      
+      while true; do
+        # Make a request and check for 429 response
+        response=$(kubectl get pods -n simulation-api-throttling -v=6 2>&1)
+        total_requests=$((total_requests + 1))
+        
+        if echo "$response" | grep -q "429 Too Many Requests"; then
+          throttled_requests=$((throttled_requests + 1))
+          echo "Detected API throttling! (429 Too Many Requests)"
+          echo "$response" | grep -A 5 "429 Too Many Requests"
+        fi
+        
+        if [ $((total_requests % 10)) -eq 0 ]; then
+          echo "Stats: $throttled_requests throttled requests out of $total_requests total requests"
+        fi
+        
+        sleep 1
+      done
+    }
+    
+    # Start the throttling tracker in the background
+    track_throttling &
+    
+    # Start with a moderate load
+    echo "Phase 1: Moderate load"
+    for j in $(seq 1 5); do
+      make_requests 50
+      sleep 1
+    done
+    
+    # Increase to heavy load
+    echo "Phase 2: Heavy load"
+    for j in $(seq 1 10); do
+      make_requests 100
+      sleep 0.5
+    done
+    
+    # Maximum load to ensure throttling
+    echo "Phase 3: Maximum load (should trigger throttling)"
+    for j in $(seq 1 20); do
+      make_requests 200
+      sleep 0.3
+    done
+    
+    # Continue with sustained high load
+    echo "Phase 4: Sustained high load"
+    while true; do
+      make_requests 150
+      sleep 0.5
+    done
+---
+# Service account for the load generator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: load-generator-sa
+  namespace: simulation-api-throttling
+---
+# RBAC for the load generator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: api-load-generator
+  namespace: simulation-api-throttling
+rules:
+- apiGroups: [""]
+  resources: ["pods", "configmaps", "secrets", "services"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: api-load-generator-binding
+  namespace: simulation-api-throttling
+subjects:
+- kind: ServiceAccount
+  name: load-generator-sa
+  namespace: simulation-api-throttling
+roleRef:
+  kind: Role
+  name: api-load-generator
+  apiGroup: rbac.authorization.k8s.io
+---
+# Pod with high priority that should not be throttled
+apiVersion: v1
+kind: Pod
+metadata:
+  name: high-priority-app
+  namespace: simulation-api-throttling
+  labels:
+    app: high-priority
+    scenario: api-throttling
+spec:
+  serviceAccountName: load-generator-sa
+  containers:
+  - name: app
+    image: bitnami/kubectl:1.23
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      echo "High priority application starting..."
+      echo "This app should not experience API throttling due to its priority."
+      
+      THROTTLED=0
+      REQUESTS=0
+      
+      while true; do
+        RESULT=$(kubectl get pods -n simulation-api-throttling -v=6 2>&1)
+        REQUESTS=$((REQUESTS + 1))
+        
+        if echo "$RESULT" | grep -q "429 Too Many Requests"; then
+          THROTTLED=$((THROTTLED + 1))
+          echo "WARNING: Even high priority app got throttled!"
+        fi
+        
+        if [ $((REQUESTS % 10)) -eq 0 ]; then
+          echo "High priority app stats: $THROTTLED throttled out of $REQUESTS requests"
+        fi
+        
+        sleep 2
+      done
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+---
+# Deployment with load generator pods
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-load-generator
+  namespace: simulation-api-throttling
+  labels:
+    app: api-load-generator
+    scenario: api-throttling
+spec:
+  replicas: 3  # Multiple replicas to increase load
+  selector:
+    matchLabels:
+      app: api-load-generator
+  template:
+    metadata:
+      labels:
+        app: api-load-generator
+    spec:
+      serviceAccountName: load-generator-sa
+      containers:
+      - name: load-generator
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "/scripts/generate-load.sh"]
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 400m
+            memory: 512Mi
+      volumes:
+      - name: scripts
+        configMap:
+          name: load-generator-script
+          defaultMode: 0777
+---
+# Regular application with lower priority that will be throttled
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regular-app
+  namespace: simulation-api-throttling
+  labels:
+    app: regular-app
+    scenario: api-throttling
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: regular-app
+  template:
+    metadata:
+      labels:
+        app: regular-app
+    spec:
+      serviceAccountName: load-generator-sa
+      containers:
+      - name: app
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Regular application starting..."
+          echo "This app should experience API throttling during high load."
+          
+          THROTTLED=0
+          REQUESTS=0
+          
+          while true; do
+            RESULT=$(kubectl get pods -n simulation-api-throttling -v=6 2>&1)
+            REQUESTS=$((REQUESTS + 1))
+            
+            if echo "$RESULT" | grep -q "429 Too Many Requests"; then
+              THROTTLED=$((THROTTLED + 1))
+              echo "Regular app got throttled as expected."
+            fi
+            
+            if [ $((REQUESTS % 10)) -eq 0 ]; then
+              echo "Regular app stats: $THROTTLED throttled out of $REQUESTS requests"
+            fi
+            
+            sleep 5
+          done
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+# Job to monitor and explain the throttling behavior
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-throttling-monitor
+  namespace: simulation-api-throttling
+spec:
+  template:
+    spec:
+      serviceAccountName: load-generator-sa
+      containers:
+      - name: monitor
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for the throttling pattern to establish
+          echo "Waiting for API throttling scenario to initialize..."
+          sleep 60
+          
+          echo "=== API Priority and Fairness Configuration ==="
+          kubectl get apf -n kube-system 2>/dev/null || echo "APIServer doesn't have APF or you don't have permissions"
+          
+          echo -e "\n=== Monitoring for throttled requests ==="
+          # Use a low verbosity to see API responses
+          echo "Making API requests to detect throttling..."
+          for i in {1..30}; do
+            result=$(kubectl get pods -n simulation-api-throttling -v=6 2>&1)
+            if echo "$result" | grep -q "429 Too Many Requests"; then
+              echo "❌ Detected API throttling! (429 Too Many Requests)"
+              echo "$result" | grep -A 5 "429 Too Many Requests"
+            else
+              echo "✅ Request successful"
+            fi
+            sleep 1
+          done
+          
+          echo -e "\n=== Pods Status ==="
+          kubectl get pods -n simulation-api-throttling
+          
+          echo -e "\n=== Load Generator Pods Logs ==="
+          for pod in $(kubectl get pods -n simulation-api-throttling -l app=api-load-generator -o name | head -n 1); do
+            echo "Logs from $pod:"
+            kubectl logs $pod -n simulation-api-throttling --tail=20
+          done
+          
+          echo -e "\n=== Regular App Pods Logs ==="
+          for pod in $(kubectl get pods -n simulation-api-throttling -l app=regular-app -o name | head -n 1); do
+            echo "Logs from $pod:"
+            kubectl logs $pod -n simulation-api-throttling --tail=20
+          done
+          
+          echo -e "\n=== High Priority App Logs ==="
+          kubectl logs high-priority-app -n simulation-api-throttling --tail=20
+          
+          echo -e "\n=== API Server Metrics ==="
+          kubectl get --raw /metrics 2>/dev/null | grep -E "apiserver_.*_requests|apiserver_.*_rejected" || echo "Cannot access API server metrics"
+          
+          echo -e "\nExplanation:"
+          echo "The API throttling scenario generates a high volume of API requests that"
+          echo "eventually triggers the API server's rate limiting mechanisms. When this"
+          echo "happens, some requests receive '429 Too Many Requests' responses."
+          echo ""
+          echo "In a production environment, this can manifest as:"
+          echo "- kubectl commands failing with 'Too many requests' errors"
+          echo "- Controllers being unable to update resources"
+          echo "- Applications experiencing delays in watching resources"
+          echo "- General degradation of cluster control plane responsiveness"
+          
+          echo -e "\nThis scenario demonstrates the importance of:"
+          echo "- Implementing proper API request backoff/retry mechanisms"
+          echo "- Setting appropriate API priority and fairness rules"
+          echo "- Monitoring API server usage patterns"
+          echo "- Designing applications to be resilient to temporary API unavailability"
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-throttling-scenario-info
+  namespace: simulation-api-throttling
+data:
+  description: |
+    API Server Throttling Scenario
+
+    This scenario simulates a situation where the Kubernetes API server starts
+    throttling requests due to excessive load. It generates a high volume of
+    API requests that trigger the API server's rate limiting mechanisms,
+    causing some requests to receive '429 Too Many Requests' responses.
+    
+    The scenario creates:
+    1. A deployment of load generator pods making many API requests
+    2. A regular application that will be affected by throttling
+    3. A high priority application that should be less affected
+    4. A monitoring job to observe and explain the behavior
+    
+    Expected Symptoms:
+    - '429 Too Many Requests' responses from API server
+    - Intermittent failures of kubectl commands
+    - Delayed resource updates
+    - Controllers being unable to reconcile resources quickly
+    - Application logs showing API request failures
+    - 'client.throt­tled' metrics increasing in API server
+
+    Root Cause:
+    The API server has built-in rate limiting mechanisms that activate when
+    it receives too many requests. This is implemented through API Priority
+    and Fairness (APF) or older flow control mechanisms that assign request
+    quotas based on various factors like user, namespace, or request type.
+
+    This commonly occurs when:
+    - Too many clients watching resources without appropriate throttling
+    - Applications making excessive API requests in loops
+    - CI/CD systems creating many resources in parallel
+    - Controllers misbehaving and making too many API calls
+    - Poorly implemented custom controllers or operators
+
+    Resolution:
+    - Implement client-side rate limiting and backoff
+    - Use shared informers instead of many individual watches
+    - Apply appropriate APF configuration for different workloads
+    - Use server-side apply to reduce update conflicts
+    - Consider scaling the control plane if consistently overloaded
+    - Optimize controller reconciliation patterns to reduce API calls
+
+  investigation-symptoms: |
+    Kubectl commands intermittently failing with '429 Too Many Requests' errors.
+    Applications in namespace "simulation-api-throttling" reporting API connectivity
+    issues and delayed updates to resources. Control plane operations are becoming
+    slow or timing out. 

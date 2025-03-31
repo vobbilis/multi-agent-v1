@@ -1,0 +1,335 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-liveness-issues
+  labels:
+    scenario: liveness-probe-failure
+---
+# ConfigMap with a simple web application that serves on a different port than the liveness probe expects
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: simulation-liveness-issues
+data:
+  app.py: |
+    import http.server
+    import socketserver
+    import os
+    import time
+    import threading
+    
+    # The application actually listens on port 8080
+    PORT = 8080
+    
+    # Track restart count using a file
+    restart_file = "/tmp/restart_count.txt"
+    if not os.path.exists(restart_file):
+        with open(restart_file, "w") as f:
+            f.write("0")
+    
+    with open(restart_file, "r") as f:
+        restart_count = int(f.read().strip())
+    
+    restart_count += 1
+    with open(restart_file, "w") as f:
+        f.write(str(restart_count))
+    
+    # Get the start time
+    start_time = time.time()
+    
+    class MyHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                
+                uptime = time.time() - start_time
+                content = f"""
+                <html>
+                <head><title>Test App</title></head>
+                <body>
+                    <h1>Test Application</h1>
+                    <p>This application is running on port {PORT}.</p>
+                    <p>The liveness probe is configured to check port 8081 (wrong port).</p>
+                    <p>This container has been restarted {restart_count} times due to failed liveness probes.</p>
+                    <p>Current uptime: {uptime:.2f} seconds</p>
+                </body>
+                </html>
+                """
+                self.wfile.write(content.encode())
+                return
+            elif self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'OK')
+                return
+            else:
+                super().do_GET()
+    
+    print(f"Starting server on port {PORT}...")
+    print(f"This container has been restarted {restart_count} times.")
+    
+    # Create httpd server
+    httpd = socketserver.TCPServer(("", PORT), MyHandler)
+    
+    # Start it in a thread
+    server_thread = threading.Thread(target=httpd.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+    
+    # Keep the main thread alive
+    while True:
+        time.sleep(10)
+        print(f"Server running on port {PORT}. Uptime: {time.time() - start_time:.2f} seconds")
+---
+# Deployment with misconfigured liveness probe
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liveness-probe-fail
+  namespace: simulation-liveness-issues
+  labels:
+    app: liveness-probe-fail
+    scenario: liveness-probe-failure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liveness-probe-fail
+  template:
+    metadata:
+      labels:
+        app: liveness-probe-fail
+    spec:
+      containers:
+      - name: app
+        image: python:3.9-slim
+        command: ["python", "/app/app.py"]
+        ports:
+        - containerPort: 8080  # App listens on this port
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081  # Incorrect port - the app is listening on 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080  # Correct port for readiness probe - this will succeed
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: app-config
+          mountPath: /app
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      volumes:
+      - name: app-config
+        configMap:
+          name: app-config
+          defaultMode: 0777
+---
+# Deployment with correctly configured probes (for comparison)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liveness-probe-correct
+  namespace: simulation-liveness-issues
+  labels:
+    app: liveness-probe-correct
+    scenario: liveness-probe-failure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liveness-probe-correct
+  template:
+    metadata:
+      labels:
+        app: liveness-probe-correct
+    spec:
+      containers:
+      - name: app
+        image: python:3.9-slim
+        command: ["python", "/app/app.py"]
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080  # Correct port
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080  # Correct port
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: app-config
+          mountPath: /app
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      volumes:
+      - name: app-config
+        configMap:
+          name: app-config
+          defaultMode: 0777
+---
+# Service for the failing deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: liveness-probe-fail
+  namespace: simulation-liveness-issues
+spec:
+  selector:
+    app: liveness-probe-fail
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# Service for the correct deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: liveness-probe-correct
+  namespace: simulation-liveness-issues
+spec:
+  selector:
+    app: liveness-probe-correct
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+# Job to diagnose the liveness probe issue
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: liveness-diagnosis
+  namespace: simulation-liveness-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: diagnosis
+        image: bitnami/kubectl:1.23
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          # Wait for the restart pattern to establish
+          echo "Waiting for liveness probe restarts to occur..."
+          sleep 60
+          
+          echo "=== Deployments Status ==="
+          kubectl get deployments -n simulation-liveness-issues
+          
+          echo -e "\n=== Pods Status ==="
+          kubectl get pods -n simulation-liveness-issues
+          
+          echo -e "\n=== Failing Pod Details ==="
+          FAILING_POD=$(kubectl get pods -n simulation-liveness-issues -l app=liveness-probe-fail -o name | head -n 1)
+          if [ ! -z "$FAILING_POD" ]; then
+            kubectl describe $FAILING_POD -n simulation-liveness-issues
+            
+            echo -e "\n=== Failing Pod Logs ==="
+            kubectl logs $FAILING_POD -n simulation-liveness-issues
+            
+            echo -e "\n=== Restart Count ==="
+            RESTARTS=$(kubectl get $FAILING_POD -n simulation-liveness-issues -o jsonpath='{.status.containerStatuses[0].restartCount}')
+            echo "Container has been restarted $RESTARTS times due to liveness probe failures"
+          else
+            echo "No failing pod found. The pod might have been restarted recently."
+          fi
+          
+          echo -e "\n=== Correct Pod Details ==="
+          CORRECT_POD=$(kubectl get pods -n simulation-liveness-issues -l app=liveness-probe-correct -o name | head -n 1)
+          if [ ! -z "$CORRECT_POD" ]; then
+            kubectl describe $CORRECT_POD -n simulation-liveness-issues
+            
+            echo -e "\n=== Correct Pod Logs ==="
+            kubectl logs $CORRECT_POD -n simulation-liveness-issues
+          else
+            echo "No correct pod found."
+          fi
+          
+          echo -e "\n=== Events ==="
+          kubectl get events -n simulation-liveness-issues --sort-by=.metadata.creationTimestamp | tail -n 20
+          
+          echo -e "\nExplanation:"
+          echo "The liveness-probe-fail pod is configured with a liveness probe that checks port 8081,"
+          echo "but the application is actually listening on port 8080. This mismatch causes the"
+          echo "liveness probe to fail, resulting in continuous container restarts."
+          
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liveness-probe-failure-scenario-info
+  namespace: simulation-liveness-issues
+data:
+  description: |
+    Liveness Probe Failure Scenario
+
+    This scenario simulates a common issue where a container's liveness probe is 
+    misconfigured and doesn't match the actual application configuration. The 
+    application is configured to listen on port 8080, but the liveness probe is 
+    checking port 8081, causing continuous container restarts.
+    
+    The scenario creates:
+    1. A deployment with incorrectly configured liveness probe (port mismatch)
+    2. A deployment with correctly configured liveness probe (for comparison)
+    3. Services for both deployments
+    
+    Expected Symptoms:
+    - Container continually restarting
+    - High restart count on the pod
+    - Events showing liveness probe failures
+    - Application intermittently available as it keeps restarting
+    - Logs showing the application starting multiple times
+    - Readiness probe passes but liveness probe fails
+
+    Root Cause:
+    The liveness probe is configured to check port 8081, but the application is 
+    listening on port 8080. This port mismatch causes the liveness probe to fail,
+    which triggers Kubernetes to restart the container repeatedly.
+
+    This commonly occurs when:
+    - Application configuration changes but probe configuration isn't updated
+    - Copying deployment configurations between different applications
+    - Using port numbers from a previous version of an application
+    - Typos in the configuration
+    - Confusion between host and container ports
+
+    Resolution:
+    - Update the liveness probe configuration to use the correct port (8080)
+    - Ensure probe settings match application configuration
+    - Implement automated tests to validate probe configurations
+    - Document intended port usage for applications
+    - Consider standardizing health check endpoints across applications
+
+  investigation-symptoms: |
+    Application in namespace "simulation-liveness-issues" is experiencing instability
+    with frequent container restarts. The service is intermittently available, and
+    users report getting disconnected periodically. Investigation shows high restart 
+    count on the pods. 

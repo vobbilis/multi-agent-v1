@@ -1,0 +1,272 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simulation-app-issues
+  labels:
+    scenario: cassandra-compaction
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cassandra
+  namespace: simulation-app-issues
+  labels:
+    app: cassandra
+    scenario: compaction-slowdown
+spec:
+  serviceName: cassandra
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cassandra
+  template:
+    metadata:
+      labels:
+        app: cassandra
+    spec:
+      containers:
+      - name: cassandra
+        image: cassandra:3.11
+        ports:
+        - containerPort: 9042
+          name: cql
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        volumeMounts:
+        - name: cassandra-data
+          mountPath: /var/lib/cassandra
+        env:
+        - name: MAX_HEAP_SIZE
+          value: "800M"
+        - name: HEAP_NEWSIZE
+          value: "200M"
+        - name: CASSANDRA_SEEDS
+          value: cassandra-0.cassandra.simulation-app-issues.svc.cluster.local
+        - name: CASSANDRA_CLUSTER_NAME
+          value: "SimulationCluster"
+        - name: CASSANDRA_DC
+          value: "SimDC"
+        - name: CASSANDRA_RACK
+          value: "SimRack"
+        - name: CASSANDRA_ENDPOINT_SNITCH
+          value: "GossipingPropertyFileSnitch"
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - nodetool status | grep -E "^UN\\s+${POD_IP}"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Wait for Cassandra to start
+                sleep 60
+                
+                # Create keyspace and table
+                cqlsh -e "CREATE KEYSPACE IF NOT EXISTS simulation WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+                cqlsh -e "CREATE TABLE IF NOT EXISTS simulation.test_data (id uuid PRIMARY KEY, data text);"
+                
+                # Insert test data to prepare for compaction
+                echo "Inserting initial data..."
+                for i in {1..10000}; do
+                  cqlsh -e "INSERT INTO simulation.test_data (id, data) VALUES (uuid(), 'initial_data_$i');"
+                  if [ $((i % 1000)) -eq 0 ]; then
+                    echo "Inserted $i rows"
+                  fi
+                done
+      terminationGracePeriodSeconds: 180
+  volumeClaimTemplates:
+  - metadata:
+      name: cassandra-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra
+  namespace: simulation-app-issues
+  labels:
+    app: cassandra
+spec:
+  clusterIP: None
+  selector:
+    app: cassandra
+  ports:
+  - port: 9042
+    name: cql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-using-cassandra
+  namespace: simulation-app-issues
+  labels:
+    app: user-service
+    scenario: compaction-slowdown
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: simulate-script
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: simulate-script
+        configMap:
+          name: compaction-simulator
+          defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: simulation-app-issues
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compaction-simulator
+  namespace: simulation-app-issues
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Simulated Cassandra Compaction Issue</title>
+    </head>
+    <body>
+      <h1>Cassandra Compaction Simulation</h1>
+      <p>This app is connected to a Cassandra database that will simulate compaction issues.</p>
+    </body>
+    </html>
+  
+  trigger-compaction.sh: |
+    #!/bin/bash
+    
+    echo "Starting the compaction trigger script..."
+    
+    # Wait for Cassandra to be ready with initial data
+    sleep 180
+    
+    # Trigger update operations that will create compaction pressure
+    echo "Beginning data updates to trigger compaction..."
+    for i in {1..20}; do
+      echo "Running update batch $i..."
+      kubectl exec -n simulation-app-issues cassandra-0 -- cqlsh -e "UPDATE simulation.test_data SET data = 'updated_data_batch_$i' WHERE id IN (SELECT id FROM simulation.test_data LIMIT 1000);"
+      kubectl exec -n simulation-app-issues cassandra-0 -- nodetool flush
+      echo "Sleeping between batches..."
+      sleep 30
+    done
+    
+    # Force a major compaction
+    echo "Forcing major compaction..."
+    kubectl exec -n simulation-app-issues cassandra-0 -- nodetool compact simulation
+    
+    echo "Compaction operations complete."
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: compaction-trigger
+  namespace: simulation-app-issues
+spec:
+  template:
+    spec:
+      containers:
+      - name: compaction-starter
+        image: bitnami/kubectl:latest
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          sleep 180
+          echo "Triggering data operations to cause compaction..."
+          # Update data to create fragmentation
+          for i in {1..5}; do
+            echo "Running major update batch $i..."
+            kubectl exec -n simulation-app-issues cassandra-0 -- cqlsh -e "UPDATE simulation.test_data SET data = 'updated_data_major_$i' WHERE id IN (SELECT id FROM simulation.test_data LIMIT 2000);"
+            kubectl exec -n simulation-app-issues cassandra-0 -- nodetool flush simulation
+            echo "Sleeping between major batches..."
+            sleep 60
+          done
+          
+          echo "Forcing major compaction..."
+          kubectl exec -n simulation-app-issues cassandra-0 -- nodetool compact simulation
+          
+          echo "Continuously monitoring compaction status..."
+          while true; do
+            kubectl exec -n simulation-app-issues cassandra-0 -- nodetool compactionstats
+            sleep 30
+          done
+      restartPolicy: Never
+  backoffLimit: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cassandra-compaction-scenario-info
+  namespace: simulation-app-issues
+data:
+  description: |
+    Cassandra Compaction Slowdown Scenario
+
+    This scenario deploys a Cassandra database that will undergo compaction operations,
+    which can cause temporary performance degradation. The compaction process reclaims
+    space and optimizes data storage, but consumes significant I/O and CPU resources.
+
+    Expected Symptoms:
+    - Increased latency for database operations during compaction
+    - Application slowdown when accessing the database
+    - High disk I/O metrics on the Cassandra pods
+    - CPU spikes during compaction process
+    - Degraded response times for services that depend on Cassandra
+
+    Root Cause:
+    Cassandra is performing a compaction operation which is an I/O and CPU intensive process.
+    During compaction, Cassandra reorganizes data on disk, which can temporarily affect
+    performance of read and write operations.
+
+    Resolution:
+    - Schedule compactions during off-peak hours
+    - Tune compaction settings for better performance
+    - Increase resources allocated to Cassandra nodes
+    - Consider using SSD storage for better I/O performance
+    - Monitor and manage compaction processes proactively
+  
+  investigation-symptoms: |
+    The user-service application in namespace 'simulation-app-issues' is experiencing 
+    high latency when accessing its Cassandra database. Database operations that normally
+    take milliseconds are now taking seconds. CPU and disk I/O metrics for the Cassandra
+    pod show high utilization. 
