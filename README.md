@@ -67,10 +67,9 @@ For more details, see the [architecture documentation](docs/k8s_root_cause_analy
 
 ## Installation
 
-```bash
 # Clone the repository
-git clone https://github.com/yourusername/k8s-rca-engine.git
-cd k8s-rca-engine
+git clone https://github.com/vobbilis/multi-agent-v1.git
+cd multi-agent-v1
 
 # Install dependencies
 pip install -r requirements.txt
@@ -102,7 +101,6 @@ export PROMETHEUS_PASSWORD=your_password
 export KUBECONFIG=/path/to/your/kubeconfig  # Optional, defaults to ~/.kube/config
 export KUBECTL_PATH=/path/to/kubectl  # Optional, defaults to "kubectl" in PATH
 export INVESTIGATION_NAMESPACE=your-namespace  # Optional, defaults to "default"
-```
 
 ## Usage
 
