@@ -4,30 +4,7 @@ This directory contains documentation for each component of the Multi-Agent Root
 
 ## Component Overview
 
-![Component Architecture](../diagrams/component_architecture.png)
-
-## Core Components
-
-### Orchestrator
-- [Orchestrator Documentation](orchestrator.md)
-- **Purpose**: Central coordination component that manages the analysis workflow
-- **Responsibilities**:
-  - Manages incident lifecycle
-  - Directs specialist agents based on context
-  - Aggregates findings from multiple sources
-  - Coordinates the overall analysis workflow
-  - Manages state of ongoing investigations
-
-### Specialist Agents
-- [Specialist Agents Overview](specialist_agents.md)
-- **Purpose**: Domain-specific components that analyze different aspects of the system
-- **Types**:
-  - [Logs Agent](logs_agent.md): Analyzes log data for patterns and anomalies
-  - [Events Agent](events_agent.md): Processes Kubernetes events
-  - [Resources Agent](resources_agent.md): Monitors resource utilization metrics
-  - [Network Agent](network_agent.md): Analyzes network traffic and connectivity
-  - [Storage Agent](storage_agent.md): Examines storage-related issues
-  - [Configuration Agent](configuration_agent.md): Reviews configuration issues
+The system consists of the following core components:
 
 ### Analysis Engine
 - [Analysis Engine Documentation](analysis_engine.md)
@@ -39,35 +16,36 @@ This directory contains documentation for each component of the Multi-Agent Root
   - Generates confidence scores for different hypotheses
   - Produces actionable recommendations
 
-### Knowledge Base
-- [Knowledge Base Documentation](knowledge_base.md)
-- **Purpose**: System memory and reference store
-- **Content**:
-  - Historical incidents and resolutions
-  - Common failure patterns and signatures
-  - Component relationships and dependencies
-  - Best practices and resolution strategies
-  - Learning from past analyses
+### Simulation Engine
+- [Simulation Engine Documentation](simulation_engine.md)
+- **Purpose**: Simulates and validates failure scenarios
+- **Responsibilities**:
+  - Creates controlled failure environments
+  - Validates root cause analysis accuracy
+  - Tests system resilience
+  - Provides training data for the analysis engine
+  - Supports scenario-based testing
 
-### API Gateway
-- [API Gateway Documentation](api_gateway.md)
-- **Purpose**: Unified interface for external integrations
-- **Features**:
-  - RESTful API for system interaction
-  - Authentication and authorization
-  - Rate limiting and request validation
-  - Webhook integration for external systems
-  - Query capabilities for historical incidents
+### Specialist Agents
+The system includes specialized agents for different aspects of analysis:
 
-### Visualization Layer
-- [Visualization Layer Documentation](visualization.md)
-- **Purpose**: Presentation of analysis results and insights
-- **Features**:
-  - Interactive incident timelines
-  - Causal relationship graphs
-  - Resource utilization dashboards
-  - Recommendation displays
-  - Historical trend analysis
+#### Events Agent
+- [Events Agent Documentation](specialist_agents/events_agent.md)
+- **Purpose**: Processes and analyzes Kubernetes events
+- **Responsibilities**:
+  - Monitors cluster events
+  - Identifies event patterns
+  - Correlates events with incidents
+  - Provides event-based insights
+
+#### Logs Agent
+- [Logs Agent Documentation](specialist_agents/logs_agent.md)
+- **Purpose**: Analyzes log data for patterns and anomalies
+- **Responsibilities**:
+  - Collects and processes logs
+  - Identifies log patterns
+  - Correlates logs with events
+  - Provides log-based insights
 
 ## Component Communication
 
@@ -78,13 +56,11 @@ Components communicate through a combination of:
 3. **Shared Storage**: For larger data sets and persistent information
 4. **Direct gRPC calls**: For high-performance, low-latency communication
 
-![Component Communication](../diagrams/component_communication.png)
-
 ## Data Flow Between Components
 
 1. **Incident Detection**:
    - External systems or monitoring alerts trigger an incident
-   - Orchestrator creates an investigation context
+   - Analysis Engine creates an investigation context
    - Relevant specialist agents are activated
 
 2. **Data Collection**:
@@ -94,8 +70,8 @@ Components communicate through a combination of:
 
 3. **Finding Generation**:
    - Specialist agents perform domain-specific analysis
-   - Findings are reported to the Orchestrator
-   - Orchestrator may request additional data as needed
+   - Findings are reported to the Analysis Engine
+   - Analysis Engine may request additional data as needed
 
 4. **Root Cause Analysis**:
    - Analysis Engine receives integrated findings
@@ -105,42 +81,30 @@ Components communicate through a combination of:
 5. **Results and Recommendations**:
    - Most likely root causes are determined
    - Recommendations for resolution are generated
-   - Results are stored in the Knowledge Base
+   - Results are stored for future reference
    - Notifications are sent through the API Gateway
 
 ## Component Interfaces
 
 Each component exposes well-defined interfaces:
 
-### Orchestrator Interfaces
-- **Agent Management API**: Control and monitor specialist agents
-- **Incident API**: Manage incidents and investigations
-- **Task Queue**: Distribute tasks to specialist agents
-- **Status API**: Report system status and component health
+### Analysis Engine Interfaces
+- **Findings Ingestion API**: Consume agent findings
+- **Analysis API**: Trigger and manage analyses
+- **Results API**: Report analysis results
+- **Knowledge Query API**: Access historical data
+
+### Simulation Engine Interfaces
+- **Scenario API**: Create and manage test scenarios
+- **Validation API**: Validate analysis results
+- **Environment API**: Control test environments
+- **Results API**: Report simulation outcomes
 
 ### Specialist Agent Interfaces
 - **Task API**: Receive and process analysis tasks
 - **Findings API**: Report analysis findings
 - **Data Source API**: Connect to external data sources
 - **Health API**: Report agent health and status
-
-### Analysis Engine Interfaces
-- **Findings Ingestion API**: Consume agent findings
-- **Analysis API**: Trigger and manage analyses
-- **Results API**: Report analysis results
-- **Knowledge Query API**: Access the Knowledge Base
-
-### Knowledge Base Interfaces
-- **Query API**: Search and retrieve knowledge
-- **Storage API**: Store new knowledge
-- **Learning API**: Update patterns and relationships
-- **Export API**: Export knowledge for backup or transfer
-
-### API Gateway Interfaces
-- **External REST API**: For client applications
-- **Webhook API**: For event notifications
-- **Authentication API**: For access control
-- **Internal API**: For component communication
 
 ## Component Configuration
 
