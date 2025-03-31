@@ -1,0 +1,62 @@
++---------------------+     +---------------------+     +---------------------+
+|                     |     |                     |     |                     |
+|  API Gateway        |     |  Visualization      |     |  External Systems   |
+|                     |     |  Layer              |     |  Integration        |
+|                     |     |                     |     |                     |
++----------+----------+     +----------+----------+     +----------+----------+
+           |                           |                           |
+           |                           |                           |
+           v                           v                           v
++----------+----------------------------------------------------------+
+|                                                                      |
+|                          Orchestrator                                |
+|                                                                      |
++--+-------------------+-------------------+-------------------+-------+
+   |                   |                   |                   |
+   |                   |                   |                   |
+   v                   v                   v                   v
++--+---+          +----+---+          +----+---+          +----+---+
+|      |          |        |          |        |          |        |
+| Logs |          | Events |          |Resource|          |Network |
+| Agent|          | Agent  |          | Agent  |          | Agent  |
+|      |          |        |          |        |          |        |
++--+---+          +----+---+          +----+---+          +----+---+
+   |                   |                   |                   |
+   |                   |                   |                   |
+   v                   v                   v                   v
++--+---+          +----+---+          +----+---+          +----+---+
+|      |          |        |          |        |          |        |
+|Storage|         | Config |          |Analysis|          |Knowledge|
+| Agent|          | Agent  |          | Engine |          | Base   |
+|      |          |        |          |        |          |        |
++------+          +--------+          +---+----+          +---+----+
+                                          |                   |
+                                          +-------------------+
+```
+
+This ASCII diagram represents the component architecture of the Multi-Agent Root Cause Analysis System, showing the hierarchical organization and interactions between components:
+
+1. At the top level are the interface components:
+   - API Gateway for external API access
+   - Visualization Layer for presenting results
+   - External System Integration for connecting to monitoring tools
+
+2. The Orchestrator sits at the center, coordinating all activities:
+   - It manages the workflow of incident investigation
+   - It dispatches tasks to specialist agents
+   - It coordinates the analysis process
+
+3. Six specialized agents focus on different aspects:
+   - Logs Agent: Processes log data for patterns
+   - Events Agent: Analyzes Kubernetes events
+   - Resource Agent: Examines resource utilization
+   - Network Agent: Investigates network issues
+   - Storage Agent: Looks into storage problems
+   - Config Agent: Reviews configuration issues
+
+4. The Analysis Engine and Knowledge Base work together:
+   - Analysis Engine processes findings from agents
+   - Knowledge Base stores patterns and learned insights
+   - They form a feedback loop for continuous learning
+
+This architecture provides a clear separation of concerns while enabling collaborative analysis across multiple specialized domains. 

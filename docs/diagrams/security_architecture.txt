@@ -1,0 +1,87 @@
+                                        SECURITY PERIMETER
+       +----------------------------------------------------------------------+
+       |                                                                      |
+       |  +------------------+   +-------------------+   +------------------+ |
+       |  |                  |   |                   |   |                  | |
+       |  | Authentication   |   | Authorization     |   | Encryption       | |
+       |  | - JWT            |   | - RBAC            |   | - TLS            | |
+       |  | - OAuth2         |   | - Policies        |   | - Data-at-rest   | |
+       |  | - API Keys       |   | - Role Mapping    |   | - Data-in-motion | |
+       |  |                  |   |                   |   |                  | |
+       |  +------------------+   +-------------------+   +------------------+ |
+       |                                                                      |
+       +----------------------------------------------------------------------+
+                     |                   |                     |
+                     v                   v                     v
++------------------+ +-------------------+ +------------------+ +------------------+
+|                  | |                   | |                  | |                  |
+| API Gateway      | | Orchestrator      | | Specialist       | | Knowledge Base   |
+| - Auth Check     | | - Task Validation | | Agents           | | - Access Control |
+| - Rate Limiting  | | - Permission     +| | - Source Auth    | | - Data Masking   |
+| - Input Valid.   | | - Audit Logging   | | - Input Sanitize | | - Encrypt at Rest|
+|                  | |                   | |                  | |                  |
++--------+---------+ +--------+----------+ +--------+---------+ +--------+---------+
+         |                    |                     |                    |
+         |                    |                     |                    |
+         v                    v                     v                    v
++--------+---------+ +--------+----------+ +--------+---------+ +--------+---------+
+|                  | |                   | |                  | |                  |
+| Network          | | Pod Security      | | Kubernetes       | | Secret           |
+| Policies         | | Standards         | | RBAC             | | Management       |
+| - Default Deny   | | - Non-root        | | - ServiceAccounts| | - K8s Secrets    |
+| - Allow Rules    | | - ReadOnly FS     | | - Minimal Perms  | | - External Vault |
+| - Egress Control | | - Capabilities    | | - Role Bindings  | | - Rotation       |
+|                  | |                   | |                  | |                  |
++------------------+ +-------------------+ +------------------+ +------------------+
+
+   +-------------------+  +-------------------+  +-------------------+
+   |                   |  |                   |  |                   |
+   | Security Logging  |  | Audit Trail       |  | Compliance        |
+   | - Centralized     |  | - Authentication  |  | - Policy Checks   |
+   | - Tamper-proof    |  | - API Access      |  | - Scan Results    |
+   | - Structured      |  | - Admin Actions   |  | - Configuration   |
+   |                   |  |                   |  |                   |
+   +-------------------+  +-------------------+  +-------------------+
+
++----------------------------------------------------------------------+
+| DEFENSE-IN-DEPTH LAYERS                                              |
+|                                                                      |
+| 1. External Perimeter (API Gateway, TLS)                             |
+| 2. Authentication & Authorization Layer                              |
+| 3. Component Specific Controls                                       |
+| 4. Kubernetes Security (RBAC, Network Policies, Pod Security)        |
+| 5. Data Protection (Encryption, Masking)                             |
+| 6. Monitoring & Audit (Logging, Tracing, Alerts)                     |
++----------------------------------------------------------------------+
+```
+
+This ASCII diagram illustrates the security architecture of the Multi-Agent Root Cause Analysis System:
+
+1. **Security Perimeter**:
+   - Authentication mechanisms (JWT, OAuth2, API Keys)
+   - Authorization controls (RBAC, Policies)
+   - Encryption for data protection (TLS, data-at-rest)
+
+2. **Component-Specific Security**:
+   - API Gateway: Auth checking, rate limiting, input validation
+   - Orchestrator: Task validation, permission checks, audit logging
+   - Specialist Agents: Source authentication, input sanitization
+   - Knowledge Base: Access control, data masking, encryption at rest
+
+3. **Kubernetes Security Controls**:
+   - Network Policies: Default deny with specific allow rules
+   - Pod Security Standards: Non-root execution, read-only filesystem
+   - Kubernetes RBAC: Service accounts with minimal permissions
+   - Secret Management: Kubernetes secrets, external vaults
+
+4. **Security Observability**:
+   - Security Logging: Centralized, tamper-proof, structured
+   - Audit Trail: Authentication events, API access, admin actions
+   - Compliance: Policy checks, scan results, configuration validation
+
+5. **Defense-in-Depth Approach**:
+   - Multiple layers of security controls
+   - Protection at each architectural boundary
+   - Independent security mechanisms
+
+This comprehensive security architecture implements the principle of defense-in-depth, with multiple layers of security controls to protect the system from various threats and attack vectors. 

@@ -1,0 +1,85 @@
++-------------+                          +-------------+
+|             |        REST API          |             |
+| API Gateway |<------------------------->| Orchestrator|
+|             |                          |             |
++------+------+                          +------+------+
+       ^                                        |
+       |                                        |
+       |                                        v
+       |                                 +------+------+
+       |                                 |  Message    |
+       |                                 |  Queue      |
+       |                                 |             |
+       |                                 +------+------+
+       |                                        |
+       |                                        |
+       |            +--------------------+------+------+--------------------+
+       |            |                    |             |                    |
+       |            v                    v             v                    v
++------+------+  +--+----------+  +-----+-------+  +--+----------+  +-----+-------+
+|             |  |             |  |             |  |             |  |             |
+| Knowledge   |  | Logs Agent  |  | Events Agent|  |Resources Agt|  | Network Agt |
+| Base        |  |             |  |             |  |             |  |             |
++------+------+  +------+------+  +------+------+  +------+------+  +------+------+
+       ^                |                |                |                |
+       |                v                v                v                v
+       |         +------+------+  +------+------+  +------+------+  +------+------+
+       |         |             |  |             |  |             |  |             |
+       |         | Logs Source |  | K8s Events  |  | Metrics DB  |  | Network Data|
+       |         |             |  |             |  |             |  |             |
+       |         +-------------+  +-------------+  +-------------+  +-------------+
+       |
+       |
++------+------+                          +------+------+
+|             |        gRPC              |             |
+|Analysis     |<------------------------->| Storage Agt |
+|Engine       |                          |             |
++-------------+                          +------+------+
+                                                |
+                                                v
+                                         +------+------+
+                                         |             |
+                                         | Storage Data|
+                                         |             |
+                                         +-------------+
+
+                +--------------------------------------+
+                |           COMMUNICATION TYPES        |
+                +--------------------------------------+
+                | REST API: Synchronous Request/Reply  |
+                | Message Queue: Async Event-Driven    |
+                | gRPC: High-Performance Streaming     |
+                | Database: Persistent Data Storage    |
+                +--------------------------------------+
+```
+
+This ASCII diagram illustrates the communication patterns between components in the Multi-Agent Root Cause Analysis System:
+
+1. **Interface Layer Communication**:
+   - API Gateway communicates with the Orchestrator via REST API
+   - Knowledge Base provides data to API Gateway for queries
+
+2. **Coordination Communication**:
+   - Orchestrator uses a Message Queue for asynchronous communication with agents
+   - This enables event-driven architecture and decoupling of components
+
+3. **Agent Data Collection**:
+   - Each Specialist Agent connects to its specific data sources
+   - Logs Agent connects to log storage systems
+   - Events Agent connects to Kubernetes Events API
+   - Resources Agent connects to metrics databases
+   - Network Agent collects network flow and performance data
+
+4. **Analysis Communication**:
+   - Analysis Engine communicates with Storage Agent via high-performance gRPC
+   - Storage Agent provides access to persistent storage data
+
+5. **Knowledge Communication**:
+   - Analysis Engine reads from and writes to the Knowledge Base
+   - This enables continuous learning and improvement
+
+The system employs multiple communication patterns based on specific needs:
+- REST API for human interfaces and simple request/reply
+- Message Queue for event-driven, asynchronous processing
+- gRPC for high-performance, streaming data communications
+- Direct database access for persistent storage operations 

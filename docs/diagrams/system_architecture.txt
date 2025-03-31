@@ -1,0 +1,55 @@
+                            +--------------------------+
+                            |                          |
+                            |   External Systems       |
+                            |   (Monitoring, Alerts)   |
+                            |                          |
+                            +------------+-------------+
+                                         |
+                                         v
++----------------+            +----------+-----------+
+|                |            |                      |
+|  Knowledge     +<-----------+    API Gateway       |
+|  Base          |            |                      |
+|                +----------->+                      |
++----------------+            +----------+-----------+
+        ^                                |
+        |                                v
+        |                     +----------+-----------+
+        |                     |                      |
+        |                     |    Orchestrator      |
+        |                     |                      |
+        +---------------------+                      |
+        |                     +----------+-----------+
+        |                                |
+        v                                v
++----------------+            +----------+-----------+
+|                |            |                      |
+|  Analysis      +<-----------+   Specialist Agents  |
+|  Engine        |            |                      |
+|                +----------->|   - Logs Agent       |
++----------------+            |   - Events Agent     |
+        ^                     |   - Resources Agent  |
+        |                     |   - Network Agent    |
+        |                     |   - Storage Agent    |
+        |                     |   - Config Agent     |
+        |                     |                      |
+        +---------------------+                      |
+                              +----------+-----------+
+                                         |
+                                         v
+                              +----------+-----------+
+                              |                      |
+                              |   Kubernetes         |
+                              |   Environment        |
+                              |                      |
+                              +--------------------------+
+```
+
+This ASCII diagram represents the system architecture of the Multi-Agent Root Cause Analysis System, showing the relationships between the core components:
+
+1. External Systems connect to the API Gateway
+2. API Gateway interfaces with the Orchestrator and Knowledge Base
+3. Orchestrator coordinates the Specialist Agents and interfaces with the Analysis Engine
+4. Specialist Agents gather data from the Kubernetes Environment
+5. Analysis Engine processes findings and updates the Knowledge Base
+6. All components interact in a coordinated workflow for root cause analysis 

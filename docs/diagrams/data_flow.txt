@@ -1,0 +1,70 @@
++------------------------+     +-----------------------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  Monitoring Systems    +---->|  Incident Detection   +---->|  Orchestrator Creates    |
+|  User Reports          |     |                       |     |  Investigation Context    |
+|                        |     |                       |     |                           |
++------------------------+     +-----------------------+     +-----------+---------------+
+                                                                        |
+                                                                        v
++------------------------+     +-----------------------+     +-----------+---------------+
+|                        |     |                       |     |                           |
+|  Data Preprocessing    |<----+  Specialist Agents    |<----+  Orchestrator Activates  |
+|  Pattern Recognition   |     |  Collect Data         |     |  Relevant Agents         |
+|                        |     |                       |     |                           |
++----------+-------------+     +-----------------------+     +---------------------------+
+           |
+           v
++----------+-------------+     +-----------------------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  Agent-Specific        +---->|  Orchestrator         +---->|  Additional Data         |
+|  Analysis & Findings   |     |  Aggregates Findings  |     |  Collection (if needed)  |
+|                        |     |                       |     |                           |
++------------------------+     +-----------+-----------+     +---------------------------+
+                                           |
+                                           v
++------------------------+     +-----------+-----------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  Temporal Analysis     |<----+  Analysis Engine      |---->|  Causal Relationship     |
+|  Sequence Determination|     |  Processes Findings   |     |  Identification          |
+|                        |     |                       |     |                           |
++------------------------+     +-----------+-----------+     +---------------------------+
+                                           |
+                                           v
++------------------------+     +-----------+-----------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  Root Cause            |<----+  Hypothesis Testing   +---->|  Confidence Scoring      |
+|  Determination         |     |  & Validation         |     |  of Hypotheses           |
+|                        |     |                       |     |                           |
++----------+-------------+     +-----------------------+     +---------------------------+
+           |
+           v
++----------+-------------+     +-----------------------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  Recommendation        +---->|  Knowledge Base       +---->|  Learning & Improvement  |
+|  Generation            |     |  Storage & Updates    |     |  from Resolution         |
+|                        |     |                       |     |                           |
++------------------------+     +-----------+-----------+     +---------------------------+
+                                           |
+                                           v
++------------------------+     +-----------+-----------+     +---------------------------+
+|                        |     |                       |     |                           |
+|  API Gateway           +---->|  User Notifications   +---->|  Integration with        |
+|  Delivers Results      |     |  & Visualizations     |     |  External Systems        |
+|                        |     |                       |     |                           |
++------------------------+     +-----------------------+     +---------------------------+
+```
+
+This ASCII diagram represents the data flow within the Multi-Agent Root Cause Analysis System, showing how information moves through the system from incident detection to resolution:
+
+1. The process begins with incident detection from monitoring systems or user reports
+2. The Orchestrator creates an investigation context and activates relevant Specialist Agents
+3. Agents collect and preprocess data, identifying initial patterns
+4. Agent-specific analysis generates findings which are aggregated by the Orchestrator
+5. The Analysis Engine performs temporal analysis and identifies causal relationships
+6. Hypotheses are tested and validated with confidence scoring
+7. Root causes are determined and recommendations generated
+8. Results are stored in the Knowledge Base for future reference and learning
+9. The API Gateway delivers results to users and external systems
+10. The system learns and improves from resolution feedback
+
+This flow represents a complete cycle of root cause analysis, from detection to resolution and learning. 
